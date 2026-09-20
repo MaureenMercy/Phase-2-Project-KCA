@@ -164,6 +164,34 @@ export async function completeAuthorization() {
     };
   }
 
+  if (session.state === "denied") {
+    return {
+      granted: false as const,
+      steps: [
+        {
+          key: "credentials",
+          label: "Credential verification",
+          status: "pass" as const,
+          detail: "Work ID and institutional password were verified.",
+        },
+        {
+          key: "mfa",
+          label: "Multi-factor authentication",
+          status: "pass" as const,
+          detail: "One-time verification for this session was completed.",
+        },
+        {
+          key: "identify",
+          label: "Identify commission member",
+          status: "fail" as const,
+          detail: session.reason ?? "This account is not an Electoral Commission member.",
+        },
+      ],
+      reason: session.reason ?? "Access denied.",
+      failedStep: session.failedStep ?? "identify",
+    };
+  }
+
   const user = findDirectoryUserById(session.userId);
   const member = findCommissionMemberByUserId(session.userId);
   const store = await readStore();

@@ -74,6 +74,7 @@ const STAGE_PERMISSIONS: Record<ElectionStage, ElectoralPermission[]> = {
   ],
   VOTING: [
     "view_dashboard",
+    "approve_candidates",
     "station_operations",
     "manage_commission_records",
     "authorize_election_closing",

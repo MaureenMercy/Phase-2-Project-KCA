@@ -1,5 +1,4 @@
-import { ActionButton } from "@/components/commission/ActionButton";
-import { decideCandidate } from "@/lib/actions/auth";
+import { CandidateDecision } from "@/components/commission/CandidateDecision";
 import { formatDateTime } from "@/lib/format";
 import { isAllowedNow } from "@/lib/permissions";
 import { requireAuthorizedSession } from "@/lib/session";
@@ -54,21 +53,11 @@ export default async function CandidatesPage() {
                 </td>
                 <td className="px-4 py-4">
                   {candidate.status === "pending" ? (
-                    <div className="flex flex-wrap gap-2">
-                      <ActionButton
-                        label="Approve"
-                        disabled={!canDecide}
-                        disabledReason="Candidate approval is not available at this election stage."
-                        run={() => decideCandidate(candidate.id, "approved")}
-                      />
-                      <ActionButton
-                        label="Reject"
-                        tone="danger"
-                        disabled={!canDecide}
-                        disabledReason="Candidate approval is not available at this election stage."
-                        run={() => decideCandidate(candidate.id, "rejected")}
-                      />
-                    </div>
+                    <CandidateDecision
+                      candidateId={candidate.id}
+                      disabled={!canDecide}
+                      disabledReason="Candidate approval is not available at this election stage."
+                    />
                   ) : (
                     <span className="text-xs text-navy/40">Recorded</span>
                   )}
