@@ -1,0 +1,87 @@
+@import "tailwindcss";
+
+:root {
+  --navy: #182b5c;
+  --navy-deep: #101b3a;
+  --navy-mid: #24386f;
+  --gold: #d0b216;
+  --gold-light: #e8cc4a;
+  --cream: #f6f1dc;
+  --ink: #14203f;
+}
+
+@theme inline {
+  --color-navy: var(--navy);
+  --color-navy-deep: var(--navy-deep);
+  --color-navy-mid: var(--navy-mid);
+  --color-gold: var(--gold);
+  --color-gold-light: var(--gold-light);
+  --color-gold-dim: #a88e10;
+  --color-cream: var(--cream);
+  --color-ink: var(--ink);
+  --font-sans: var(--font-source-sans);
+  --font-serif: var(--font-cormorant);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  min-height: 100%;
+}
+
+body {
+  background: var(--navy-deep);
+  color: var(--ink);
+  font-family: var(--font-source-sans), "Segoe UI", sans-serif;
+}
+
+.landing-mesh {
+  background-color: #182b5c;
+  background-image:
+    radial-gradient(ellipse at 50% 18%, rgba(208, 178, 22, 0.16), transparent 52%),
+    radial-gradient(ellipse at 50% 115%, rgba(16, 27, 58, 0.9), transparent 50%),
+    linear-gradient(rgba(208, 178, 22, 0.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(208, 178, 22, 0.045) 1px, transparent 1px);
+  background-size: auto, auto, 56px 56px, 56px 56px;
+}
+
+.gold-rule {
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    #d0b216 20%,
+    #f0e08a 50%,
+    #d0b216 80%,
+    transparent
+  );
+}
+
+.panel-shadow {
+  box-shadow:
+    0 24px 80px rgba(8, 14, 34, 0.28),
+    0 0 0 1px rgba(208, 178, 22, 0.18);
+}
+
+.otp-slot::-webkit-outer-spin-button,
+.otp-slot::-webkit-inner-spin-button {
+  appearance: none;
+}
+
+@keyframes pipeline-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.pipeline-step {
+  animation: pipeline-in 280ms ease both;
+}
