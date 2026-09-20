@@ -202,6 +202,31 @@ export async function completeAuthorization() {
       : decision;
   }
 
+  return decision;
+}
+
+export async function commitCommissionAccess() {
+  const session = await readSession();
+  if (!session) {
+    return { ok: false as const, error: "Session expired. Sign in again." };
+  }
+  if (session.state === "authorized") return { ok: true as const };
+
+  const user = findDirectoryUserById(session.userId);
+  const member = findCommissionMemberByUserId(session.userId);
+  const store = await readStore();
+  const decision = evaluateCommissionAccess({
+    credentialsValid: true,
+    mfaVerified: session.state === "pending_authorization",
+    directoryUser: user,
+    commissionMember: member,
+    election: store.election,
+  });
+
+  if (!decision.granted || !user || !member) {
+    return { ok: false as const, error: decision.granted ? "Access denied." : decision.reason };
+  }
+
   await saveSession({
     ...session,
     state: "authorized",
@@ -220,7 +245,7 @@ export async function completeAuthorization() {
     highRisk: false,
   });
 
-  return decision;
+  return { ok: true as const };
 }
 
 export async function logoutAction() {

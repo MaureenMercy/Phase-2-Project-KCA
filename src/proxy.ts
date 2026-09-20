@@ -19,6 +19,16 @@ export async function proxy(request: NextRequest) {
   const dashboard = new URL("/commission/dashboard", request.url);
 
   if (!session) {
+    if (decrypted) {
+      const expired = NextResponse.redirect(login);
+      expired.cookies.delete(SESSION_COOKIE);
+      if (pathname === "/commission/login") {
+        const allow = NextResponse.next();
+        allow.cookies.delete(SESSION_COOKIE);
+        return allow;
+      }
+      return expired;
+    }
     if (
       pathname === "/commission/login" ||
       pathname === "/commission" ||
@@ -55,7 +65,11 @@ export async function proxy(request: NextRequest) {
   }
 
   if (session.state === "denied") {
-    if (pathname === "/commission/denied" || pathname === "/commission/login") {
+    if (
+      pathname === "/commission/denied" ||
+      pathname === "/commission/login" ||
+      pathname === "/commission/authorize"
+    ) {
       return NextResponse.next();
     }
     return NextResponse.redirect(denied);

@@ -1,12 +1,12 @@
 import { AuthFrame } from "@/components/auth/AuthFrame";
 import { AuthorizeGate } from "@/components/auth/AuthorizeGate";
-import { requirePendingAuthorization } from "@/lib/session";
+import { requireAuthorizationGate } from "@/lib/session";
 
 export const metadata = { title: "Verify authority" };
 export const dynamic = "force-dynamic";
 
 export default async function AuthorizePage() {
-  await requirePendingAuthorization();
+  await requireAuthorizationGate();
 
   return (
     <AuthFrame

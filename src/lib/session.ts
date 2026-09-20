@@ -22,10 +22,7 @@ export async function readSession(): Promise<SessionPayload | null> {
   if (!token) return null;
   const session = await decryptPayload(token);
   if (!session) return null;
-  if (isIdleExpired(session)) {
-    jar.delete(SESSION_COOKIE);
-    return null;
-  }
+  if (isIdleExpired(session)) return null;
   return session;
 }
 
@@ -79,13 +76,14 @@ export async function requirePendingMfa() {
   return session;
 }
 
-export async function requirePendingAuthorization() {
+export async function requireAuthorizationGate() {
   const session = await readSession();
   if (!session) redirect("/commission/login");
   if (session.state === "authorized") redirect("/commission/dashboard");
   if (session.state === "pending_mfa") redirect("/commission/mfa");
-  if (session.state === "denied") redirect("/commission/denied");
-  if (session.state !== "pending_authorization") redirect("/commission/login");
+  if (session.state !== "pending_authorization" && session.state !== "denied") {
+    redirect("/commission/login");
+  }
   return session;
 }
 
@@ -98,6 +96,5 @@ export async function requireAuthorizedSession() {
   if (session.state !== "authorized" || !session.role || !session.memberId) {
     redirect("/commission/login");
   }
-  await touchSession(session);
   return session;
 }

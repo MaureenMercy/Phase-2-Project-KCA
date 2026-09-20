@@ -22,6 +22,8 @@ export function SessionGuard() {
 
     const events = ["click", "keydown", "mousemove", "scroll", "touchstart"];
     events.forEach((event) => window.addEventListener(event, bump));
+    void fetch("/api/session/ping", { method: "POST" });
+    lastPing = Date.now();
 
     const timer = window.setInterval(async () => {
       const idle = Date.now() - last;

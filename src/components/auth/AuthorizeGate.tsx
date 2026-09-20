@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { completeAuthorization } from "@/lib/actions/auth";
+import { commitCommissionAccess, completeAuthorization } from "@/lib/actions/auth";
 import type { PipelineStep } from "@/lib/types";
 
 export function AuthorizeGate() {
@@ -54,7 +54,14 @@ export function AuthorizeGate() {
       return;
     }
     const timeout = window.setTimeout(() => {
-      router.replace(granted ? "/commission/dashboard" : "/commission/denied");
+      void (async () => {
+        if (granted) {
+          const result = await commitCommissionAccess();
+          router.replace(result.ok ? "/commission/dashboard" : "/commission/denied");
+          return;
+        }
+        router.replace("/commission/denied");
+      })();
     }, 900);
     return () => window.clearTimeout(timeout);
   }, [granted, router, steps.length, visibleCount]);
