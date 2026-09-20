@@ -19,7 +19,7 @@ export default async function LandingPage() {
         <p className="mt-8 font-serif text-sm font-semibold tracking-[0.42em] text-gold uppercase">
           KCA University
         </p>
-        <h1 className="mt-3 font-serif text-4xl leading-none font-semibold tracking-[0.12em] text-white uppercase md:text-5xl">
+        <h1 className="mt-3 whitespace-nowrap font-serif text-[clamp(1.4rem,5vw,3rem)] leading-none font-semibold tracking-[0.16em] text-white uppercase">
           SAKU Election System
         </h1>
 
