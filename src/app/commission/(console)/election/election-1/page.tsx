@@ -1,4 +1,5 @@
 import { ActionButton } from "@/components/commission/ActionButton";
+import { CampusSeatForm } from "@/components/commission/CampusSeatForm";
 import { SeatConfigForm } from "@/components/commission/SeatConfigForm";
 import { ModuleSubnav, PageHeader, StatusPill } from "@/components/commission/PageHeader";
 import {
@@ -41,7 +42,6 @@ export default async function Election1Page({
   const campuses = store.campuses;
   const filtered = campusFilter === "all" ? units : units.filter((unit) => unit.campusId === campusFilter);
   const canSeats = isAllowedNow(session.role!, "configure_delegate_seats", store.election.stage);
-  const canResults = isAllowedNow(session.role!, "view_results", store.election.stage) || session.role !== "COMMISSIONER";
   const canRegister = isAllowedNow(session.role!, "approve_voter_register", store.election.stage);
 
   return (
@@ -128,6 +128,16 @@ export default async function Election1Page({
               </a>
             ))}
           </div>
+          {canSeats ? (
+            <CampusSeatForm
+              campusId={campusFilter === "all" ? undefined : campusFilter}
+              campusName={
+                campusFilter === "all"
+                  ? "all remaining units"
+                  : campuses.find((item) => item.id === campusFilter)?.name ?? "campus"
+              }
+            />
+          ) : null}
           {filtered.map((unit) => (
             <article key={unit.id} className="rounded-2xl border border-navy/10 bg-white/90 p-5">
               <div className="flex flex-wrap items-start justify-between gap-3">
@@ -201,10 +211,21 @@ export default async function Election1Page({
         <section className="space-y-4">
           <div className="flex flex-wrap gap-3">
             <ActionButton label="Apply demonstration tallies" run={applyDemonstrationTallies} disabled={!canSeats} disabledReason="Configuration permission required." />
-            <ActionButton label="Finalize elected delegates" tone="navy" run={finalizeElection1Results} disabled={!canResults} disabledReason="Results cannot be finalized until seats are configured." />
+            <ActionButton label="Finalize elected delegates" tone="navy" run={finalizeElection1Results} disabled={!canSeats} disabledReason="Finalizing Election 1 is a Commission configuration action after seats exist." />
           </div>
+          <ul className="divide-y divide-navy/10 rounded-2xl border border-navy/10 bg-white/90">
+            {store.delegateCandidates
+              .slice()
+              .sort((a, b) => b.votesReceived - a.votesReceived)
+              .map((candidate) => (
+                <li key={candidate.id} className="flex justify-between px-4 py-3 text-sm">
+                  <span>{candidate.fullName}</span>
+                  <span>{candidate.votesReceived} votes</span>
+                </li>
+              ))}
+          </ul>
           {store.electedDelegates.length === 0 ? (
-            <p className="text-sm text-navy/60">No elected delegates yet. Configure seats, then finalize.</p>
+            <p className="text-sm text-navy/60">No elected delegates yet. After tallies, finalize to identify winners by configured seats.</p>
           ) : (
             <ul className="divide-y divide-navy/10 rounded-2xl border border-navy/10 bg-white/90">
               {store.electedDelegates.map((delegate) => (

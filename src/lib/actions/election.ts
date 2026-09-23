@@ -108,6 +108,94 @@ export async function saveDelegateSeats(input: {
   return { ok: true };
 }
 
+export async function saveDelegateSeatsForUnconfigured(seats: number): Promise<ActionResult> {
+  const parsed = z.number().int().min(1).max(50).safeParse(seats);
+  if (!parsed.success) {
+    return { ok: false, error: "Enter an explicit seat number. Nothing is assumed." };
+  }
+
+  const gate = await assertPermission("configure_delegate_seats");
+  if ("error" in gate && gate.error) return { ok: false, error: gate.error };
+
+  let updated = 0;
+  await writeStore((store) => {
+    store.electoralUnits = store.electoralUnits.map((unit) => {
+      if (unit.delegateSeats !== null) return unit;
+      updated += 1;
+      return {
+        ...unit,
+        delegateSeats: parsed.data,
+        seatStatus: "SUBMITTED",
+        updatedAt: new Date().toISOString(),
+      };
+    });
+    return store;
+  });
+  if (!updated) return { ok: false, error: "Every active unit already has an explicit allocation." };
+
+  await appendAudit({
+    actorWorkId: gate.session.workId,
+    actorName: gate.session.fullName,
+    action: "configure_delegate_seats",
+    detail: `Explicitly allocated ${parsed.data} delegate seats to ${updated} previously unconfigured units.`,
+    highRisk: false,
+    entity: "electoral_units",
+    newValue: String(parsed.data),
+  });
+  revalidatePath("/commission/election/election-1");
+  return { ok: true };
+}
+
+export async function saveDelegateSeatsForCampus(input: {
+  campusId: string;
+  seats: number;
+}): Promise<ActionResult> {
+  const parsed = z
+    .object({
+      campusId: z.string().min(1),
+      seats: z.number().int().min(1).max(50),
+    })
+    .safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, error: "Enter an explicit seat number for this campus." };
+  }
+
+  const gate = await assertPermission("configure_delegate_seats");
+  if ("error" in gate && gate.error) return { ok: false, error: gate.error };
+
+  let updated = 0;
+  await writeStore((store) => {
+    store.electoralUnits = store.electoralUnits.map((unit) => {
+      if (unit.campusId !== parsed.data.campusId || unit.delegateSeats !== null) return unit;
+      updated += 1;
+      return {
+        ...unit,
+        delegateSeats: parsed.data.seats,
+        seatStatus: "SUBMITTED",
+        updatedAt: new Date().toISOString(),
+      };
+    });
+    return store;
+  });
+
+  if (!updated) {
+    return { ok: false, error: "Every unit on this campus already has an explicit allocation." };
+  }
+
+  await appendAudit({
+    actorWorkId: gate.session.workId,
+    actorName: gate.session.fullName,
+    action: "configure_delegate_seats",
+    detail: `Explicitly allocated ${parsed.data.seats} delegate seats to ${updated} previously unconfigured units on ${parsed.data.campusId}.`,
+    highRisk: false,
+    entity: "campus",
+    entityId: parsed.data.campusId,
+    newValue: String(parsed.data.seats),
+  });
+  revalidatePath("/commission/election/election-1");
+  return { ok: true };
+}
+
 export async function approveDelegateSeats(unitId: string): Promise<ActionResult> {
   const gate = await assertPermission("configure_delegate_seats");
   if ("error" in gate && gate.error) return { ok: false, error: gate.error };
@@ -163,7 +251,7 @@ export async function applyDemonstrationTallies(): Promise<ActionResult> {
 }
 
 export async function finalizeElection1Results(): Promise<ActionResult> {
-  const gate = await assertPermission("view_results");
+  const gate = await assertPermission("configure_election");
   if ("error" in gate && gate.error) return { ok: false, error: gate.error };
 
   const issues = validateElection1Readiness(gate.store).filter((issue) => issue.code === "seats");
