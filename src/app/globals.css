@@ -85,3 +85,9 @@ body {
 .pipeline-step {
   animation: pipeline-in 280ms ease both;
 }
+
+@media print {
+  .kca-watermark {
+    display: none !important;
+  }
+}

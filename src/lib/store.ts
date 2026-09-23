@@ -4,6 +4,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { createInitialStore } from "@/lib/seed";
 import type { AppStore, AuditEvent } from "@/lib/types";
+import { STORE_VERSION } from "@/lib/types";
 
 const STORE_PATH = path.join(process.cwd(), "data", "store.json");
 
@@ -13,6 +14,17 @@ type GlobalStore = {
 };
 
 const globalStore = globalThis as typeof globalThis & GlobalStore;
+
+function migrate(parsed: Partial<AppStore>): AppStore {
+  const initial = createInitialStore();
+  if (parsed.version !== STORE_VERSION || !parsed.electoralUnits || !parsed.campuses) {
+    return {
+      ...initial,
+      auditLog: parsed.auditLog?.length ? parsed.auditLog : initial.auditLog,
+    };
+  }
+  return { ...initial, ...parsed, version: STORE_VERSION } as AppStore;
+}
 
 async function persist(store: AppStore) {
   await mkdir(path.dirname(STORE_PATH), { recursive: true });
@@ -24,7 +36,7 @@ export async function readStore(): Promise<AppStore> {
 
   try {
     const raw = await readFile(STORE_PATH, "utf8");
-    const parsed = JSON.parse(raw) as AppStore;
+    const parsed = migrate(JSON.parse(raw) as Partial<AppStore>);
     globalStore.__sakuStore = parsed;
     return structuredClone(parsed);
   } catch {
@@ -53,7 +65,9 @@ export async function writeStore(
   return next;
 }
 
-export async function appendAudit(event: Omit<AuditEvent, "id" | "at"> & { at?: string }) {
+export async function appendAudit(
+  event: Omit<AuditEvent, "id" | "at"> & { at?: string },
+) {
   const entry: AuditEvent = {
     id: `a-${crypto.randomUUID()}`,
     at: event.at ?? new Date().toISOString(),
@@ -62,12 +76,26 @@ export async function appendAudit(event: Omit<AuditEvent, "id" | "at"> & { at?: 
     action: event.action,
     detail: event.detail,
     highRisk: event.highRisk,
+    entity: event.entity,
+    entityId: event.entityId,
+    oldValue: event.oldValue,
+    newValue: event.newValue,
+    reason: event.reason,
+    stationId: event.stationId,
+    electionStage: event.electionStage,
   };
 
   await writeStore((store) => {
-    store.auditLog = [entry, ...store.auditLog].slice(0, 200);
+    store.auditLog = [entry, ...store.auditLog].slice(0, 400);
     return store;
   });
 
   return entry;
+}
+
+export async function resetStore() {
+  const initial = createInitialStore();
+  globalStore.__sakuStore = initial;
+  await persist(initial);
+  return initial;
 }

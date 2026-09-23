@@ -1,5 +1,6 @@
 import { CommissionShell } from "@/components/commission/CommissionShell";
 import { SessionGuard } from "@/components/commission/SessionGuard";
+import { activePermissions } from "@/lib/permissions";
 import { requireAuthorizedSession } from "@/lib/session";
 import { readStore } from "@/lib/store";
 
@@ -20,6 +21,7 @@ export default async function ConsoleLayout({
       item.audience === "all" ||
       (session.role && Array.isArray(item.audience) && item.audience.includes(session.role)),
   );
+  const permissions = activePermissions(session.role!, store.election.stage);
 
   return (
     <CommissionShell
@@ -32,6 +34,9 @@ export default async function ConsoleLayout({
       }}
       electionName={store.election.name}
       stage={store.election.stage}
+      contest={store.election.contest}
+      emergencyPaused={store.election.emergencyStatus === "PAUSED"}
+      permissions={permissions}
       notifications={notifications}
     >
       <SessionGuard />

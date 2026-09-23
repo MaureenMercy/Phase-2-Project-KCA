@@ -22,25 +22,25 @@ export const DEMO_ACCOUNTS = [
   {
     workId: "KCAU-EC-004",
     fullName: "Mr. Kevin Otieno",
-    title: "Commissioner",
+    title: "Commissioner · Ruaraka",
     accountKind: "commission" as const,
   },
   {
     workId: "KCAU-EC-005",
     fullName: "Ms. Faith Chebet",
-    title: "Commissioner",
+    title: "Commissioner · Town",
     accountKind: "commission" as const,
   },
   {
     workId: "KCAU-EC-006",
     fullName: "Mr. Brian Mwangi",
-    title: "Commissioner",
+    title: "Commissioner · Kitengela",
     accountKind: "commission" as const,
   },
   {
     workId: "KCAU-EC-007",
     fullName: "Ms. Lydia Achieng",
-    title: "Commissioner",
+    title: "Commissioner · Western",
     accountKind: "commission" as const,
   },
   {
