@@ -1,9 +1,10 @@
 import { createHash } from "node:crypto";
 import { EncryptJWT, jwtDecrypt, errors as joseErrors } from "jose";
-import type { SessionPayload } from "@/lib/types";
+import type { ElectorSessionPayload, SessionPayload } from "@/lib/types";
 
 export const SESSION_COOKIE = "saku_ec_session";
 export const TRUSTED_DEVICE_COOKIE = "saku_ec_trusted";
+export const ELECTOR_COOKIE = "saku_elector_session";
 export const SESSION_IDLE_MS = 30 * 60 * 1000;
 export const SESSION_ABSOLUTE_SECONDS = 12 * 60 * 60;
 export const TRUSTED_DEVICE_SECONDS = 30 * 24 * 60 * 60;
@@ -87,4 +88,26 @@ export function cookieBaseOptions(maxAge: number) {
     path: "/",
     maxAge,
   };
+}
+
+export async function encryptElectorPayload(payload: ElectorSessionPayload) {
+  return new EncryptJWT({ ...payload, kind: payload.kind })
+    .setProtectedHeader({ alg: "dir", enc: "A256GCM" })
+    .setIssuedAt()
+    .setExpirationTime("2h")
+    .encrypt(getKey());
+}
+
+export async function decryptElectorPayload(
+  token: string,
+): Promise<ElectorSessionPayload | null> {
+  try {
+    const { payload } = await jwtDecrypt(token, getKey());
+    if (!payload.electorId || !payload.registrationNumber || !payload.kind) {
+      return null;
+    }
+    return payload as unknown as ElectorSessionPayload;
+  } catch {
+    return null;
+  }
 }

@@ -391,6 +391,15 @@ export async function authorizeElectionOpening(): Promise<ActionResult> {
     return { ok: false, error: "Re-authentication is required.", needsReauth: true };
   }
 
+  const { validateElection1Readiness } = await import("@/lib/electoral");
+  const seatIssues = validateElection1Readiness(gate.store).filter((issue) => issue.code === "seats");
+  if (gate.store.election.contest === "ELECTION_1_DELEGATE" && seatIssues.length) {
+    return {
+      ok: false,
+      error: "Election 1 cannot open while any electoral unit has an unconfigured delegate-seat allocation.",
+    };
+  }
+
   await writeStore((store) => {
     store.election.stage = "VOTING";
     store.election.openedAt = new Date().toISOString();

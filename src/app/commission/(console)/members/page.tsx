@@ -1,48 +1,54 @@
+import { PageHeader } from "@/components/commission/PageHeader";
 import { memberDirectory } from "@/lib/format";
 import { ROLE_LABELS, permissionsForRole } from "@/lib/permissions";
 import { requireAuthorizedSession } from "@/lib/session";
+import { readStore } from "@/lib/store";
 
 export const metadata = { title: "Commission" };
 export const dynamic = "force-dynamic";
 
 export default async function MembersPage() {
   await requireAuthorizedSession();
+  const store = await readStore();
   const members = memberDirectory();
 
   return (
     <div className="space-y-6">
-      <header>
-        <p className="text-[11px] tracking-[0.22em] text-navy/40 uppercase">Authority</p>
-        <h1 className="font-serif text-4xl text-navy">Electoral Commission</h1>
-        <p className="mt-2 max-w-2xl text-sm leading-6 text-navy/65">
-          Seven members sit at this commission level. Role, not login success,
-          determines what each person may do. ICT staff are not listed here.
-        </p>
-      </header>
+      <PageHeader eyebrow="Authority" title="Electoral Commission">
+        Seven members. The shell is the same; Work ID, role, assignment, and
+        stage control the actions inside it. ICT staff are not listed here.
+      </PageHeader>
 
-      <div className="overflow-hidden rounded-sm border border-navy/10 bg-white">
+      <div className="overflow-hidden rounded-2xl border border-navy/10 bg-white/90">
         <table className="w-full text-left text-sm">
           <thead className="bg-navy text-[11px] tracking-[0.14em] text-gold uppercase">
             <tr>
               <th className="px-4 py-3">Member</th>
               <th className="px-4 py-3">Work ID</th>
               <th className="px-4 py-3">Role</th>
+              <th className="px-4 py-3">Station</th>
               <th className="px-4 py-3">Electoral powers</th>
             </tr>
           </thead>
           <tbody>
-            {members.map((member) => (
-              <tr key={member.id} className="border-t border-navy/10 align-top">
-                <td className="px-4 py-4 font-semibold text-navy">{member.fullName}</td>
-                <td className="px-4 py-4 font-mono text-xs">{member.workId}</td>
-                <td className="px-4 py-4">{ROLE_LABELS[member.role]}</td>
-                <td className="px-4 py-4 text-xs leading-5 text-navy/65">
-                  {permissionsForRole(member.role).length} permissions including
-                  {member.role === "CHAIR" ? " special results authorization" : " no results authorization"}
-                  .
-                </td>
-              </tr>
-            ))}
+            {members.map((member) => {
+              const assignment = store.assignments.find((item) => item.memberId === member.id && item.active);
+              const station = store.pollingStations.find((item) => item.id === assignment?.stationId);
+              return (
+                <tr key={member.id} className="border-t border-navy/10 align-top">
+                  <td className="px-4 py-4 font-semibold text-navy">{member.fullName}</td>
+                  <td className="px-4 py-4 font-mono text-xs">{member.workId}</td>
+                  <td className="px-4 py-4">{ROLE_LABELS[member.role]}</td>
+                  <td className="px-4 py-4">{station?.name ?? "Central administration"}</td>
+                  <td className="px-4 py-4 text-xs leading-5 text-navy/65">
+                    {permissionsForRole(member.role).length} permissions
+                    {member.role === "CHAIR" ? ", including emergency initiation and results authorization" : ""}
+                    {member.role === "VICE_CHAIR" ? ", including emergency co-authorization" : ""}
+                    {member.role === "COMMISSIONER" ? " plus assigned station officer functions" : ""}.
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>

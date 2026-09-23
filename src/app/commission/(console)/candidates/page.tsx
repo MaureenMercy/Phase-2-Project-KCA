@@ -1,4 +1,5 @@
 import { CandidateDecision } from "@/components/commission/CandidateDecision";
+import { ModuleSubnav, PageHeader } from "@/components/commission/PageHeader";
 import { formatDateTime } from "@/lib/format";
 import { isAllowedNow } from "@/lib/permissions";
 import { requireAuthorizedSession } from "@/lib/session";
@@ -14,16 +15,20 @@ export default async function CandidatesPage() {
 
   return (
     <div className="space-y-6">
-      <header>
-        <p className="text-[11px] tracking-[0.22em] text-navy/40 uppercase">Nominations</p>
-        <h1 className="font-serif text-4xl text-navy">Candidates</h1>
-        <p className="mt-2 max-w-2xl text-sm leading-6 text-navy/65">
-          Commissioners may approve or reject nominations when the election stage
-          permits it. This is electoral authority, not technical access.
-        </p>
-      </header>
+      <PageHeader eyebrow="Candidate management" title="Candidates">
+        Leadership nominations are vetted here. Delegate candidates are mapped
+        from the student record to an electoral unit — they cannot pick a
+        department to contest.
+      </PageHeader>
+      <ModuleSubnav
+        current="/commission/candidates"
+        items={[
+          { href: "/commission/candidates", label: "Leadership files" },
+          { href: "/commission/election/election-1?tab=candidates", label: "Delegate candidates" },
+        ]}
+      />
 
-      <div className="overflow-hidden rounded-sm border border-navy/10 bg-white">
+      <div className="overflow-hidden rounded-2xl border border-navy/10 bg-white/90">
         <table className="w-full text-left text-sm">
           <thead className="bg-navy text-[11px] tracking-[0.14em] text-gold uppercase">
             <tr>
@@ -38,8 +43,15 @@ export default async function CandidatesPage() {
             {store.candidates.map((candidate) => (
               <tr key={candidate.id} className="border-t border-navy/10">
                 <td className="px-4 py-4">
-                  <p className="font-semibold text-navy">{candidate.fullName}</p>
-                  <p className="text-xs text-navy/50">{candidate.campus}</p>
+                  <div className="flex items-center gap-3">
+                    {candidate.photo ? (
+                      <img src={candidate.photo} alt="" className="h-10 w-10 rounded-full object-cover" />
+                    ) : null}
+                    <span>
+                      <span className="block font-semibold text-navy">{candidate.fullName}</span>
+                      <span className="text-xs text-navy/50">{candidate.campus}</span>
+                    </span>
+                  </div>
                 </td>
                 <td className="px-4 py-4">{candidate.position}</td>
                 <td className="px-4 py-4">{candidate.ticket}</td>
