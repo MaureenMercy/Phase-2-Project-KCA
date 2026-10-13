@@ -26,9 +26,18 @@ function migrate(parsed: Partial<AppStore>): AppStore {
   return { ...initial, ...parsed, version: STORE_VERSION } as AppStore;
 }
 
+function canPersistToDisk() {
+  return process.env.VERCEL !== "1" && process.env.SAKU_PERSIST !== "0";
+}
+
 async function persist(store: AppStore) {
-  await mkdir(path.dirname(STORE_PATH), { recursive: true });
-  await writeFile(STORE_PATH, JSON.stringify(store, null, 2), "utf8");
+  if (!canPersistToDisk()) return;
+  try {
+    await mkdir(path.dirname(STORE_PATH), { recursive: true });
+    await writeFile(STORE_PATH, JSON.stringify(store, null, 2), "utf8");
+  } catch {
+    // Serverless hosts such as Vercel have a read-only filesystem.
+  }
 }
 
 export async function readStore(): Promise<AppStore> {
