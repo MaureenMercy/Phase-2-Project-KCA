@@ -64,11 +64,11 @@ Live app (Vercel): **claim this first** so reviewers can keep using it. Anonymou
 
 | What the form asks for | Link |
 | --- | --- |
-| Live / hosted system | https://temporary-rushing-emerald-5ooap9k.vercel.app |
-| Keep the live app (claim on Vercel) | https://vercel.com/claim-deployment?code=3a0254ac-08da-4abb-b843-eca9a10e001b |
-| Pitch deck PDF (~1 MB, 12 slides) | https://temporary-rushing-emerald-5ooap9k.vercel.app/saku-pitch-deck.pdf |
-| Screenshots gallery | https://temporary-rushing-emerald-5ooap9k.vercel.app/demo |
-| Demo video | https://temporary-rushing-emerald-5ooap9k.vercel.app/saku-demo.mp4 |
+| Live / hosted system | https://temporary-agile-xenon-dfu2nfz.vercel.app |
+| Keep the live app (claim on Vercel) | https://vercel.com/claim-deployment?code=ddbe590c-1957-4b19-b77c-b6c14b234ece |
+| Pitch deck PDF (~1 MB, 12 slides) | https://temporary-agile-xenon-dfu2nfz.vercel.app/saku-pitch-deck.pdf |
+| Screenshots gallery | https://temporary-agile-xenon-dfu2nfz.vercel.app/demo |
+| Demo video | https://temporary-agile-xenon-dfu2nfz.vercel.app/saku-demo.mp4 |
 
 Durable GitHub copies (do not expire if you claim Vercel too late):
 
