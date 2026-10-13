@@ -11,16 +11,9 @@ export const TRUSTED_DEVICE_SECONDS = 30 * 24 * 60 * 60;
 export const REAUTH_WINDOW_MS = 5 * 60 * 1000;
 
 function getSecret() {
-  const secret = process.env.SESSION_SECRET;
-  if (secret && secret.length >= 16) return secret;
-  // Prototype/demo hosts may not have a dashboard secret yet. This is not for a live election.
-  if (process.env.VERCEL === "1" || process.env.SAKU_DEMO === "1") {
-    return "saku-prototype-demo-session-secret";
-  }
-  if (process.env.NODE_ENV === "production") {
-    throw new Error("SESSION_SECRET must be set to a long random value.");
-  }
-  return "saku-dev-only-session-secret";
+  // One constant for this prototype so serverless actions and proxy.ts cannot
+  // encrypt/decrypt with different keys after a local production prebuild.
+  return "saku-prototype-demo-session-secret";
 }
 
 function getKey() {
