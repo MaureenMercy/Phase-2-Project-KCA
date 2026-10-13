@@ -56,7 +56,30 @@ Password for every seeded directory account: `KCAU@2026`
 | `KCAU-EC-007` | Ms. Lydia Achieng | Commissioner (Western) | Station officer functions and candidate approval |
 | `KCAU-ICT-001` | Eng. Peter Kamau | Systems Administrator | Credentials may verify; Commission access is denied |
 
-OTP steps show a demonstration code because the university SMS/email gateway is not wired in this prototype.
+OTP steps show a demonstration code because the university SMS/email gateway is not wired in this prototype. On the Vercel demo host the code is always `202026`.
+
+## Submission links (paste into the form)
+
+Live app (Vercel): **claim this first** so reviewers can keep using it. Anonymous previews expire in about an hour unless transferred to a Vercel account.
+
+| What the form asks for | Link |
+| --- | --- |
+| Live / hosted system | https://temporary-rushing-emerald-5ooap9k.vercel.app |
+| Keep the live app (claim on Vercel) | https://vercel.com/claim-deployment?code=3a0254ac-08da-4abb-b843-eca9a10e001b |
+| Pitch deck PDF (~1 MB, 12 slides) | https://temporary-rushing-emerald-5ooap9k.vercel.app/saku-pitch-deck.pdf |
+| Screenshots gallery | https://temporary-rushing-emerald-5ooap9k.vercel.app/demo |
+| Demo video | https://temporary-rushing-emerald-5ooap9k.vercel.app/saku-demo.mp4 |
+
+Durable GitHub copies (do not expire if you claim Vercel too late):
+
+- Pitch deck PDF: https://github.com/MaureenMercy/Phase-2-Project-KCA/blob/cursor/saku-vercel-submission-ffaa/public/saku-pitch-deck.pdf
+- Direct PDF download: https://github.com/MaureenMercy/Phase-2-Project-KCA/raw/cursor/saku-vercel-submission-ffaa/public/saku-pitch-deck.pdf
+- Screenshots: https://github.com/MaureenMercy/Phase-2-Project-KCA/tree/cursor/saku-vercel-submission-ffaa/public/demo/screenshots
+- Demo video: https://github.com/MaureenMercy/Phase-2-Project-KCA/raw/cursor/saku-vercel-submission-ffaa/public/saku-demo.mp4
+
+Chair login: Work ID `KCAU-EC-001`, password `KCAU@2026`, OTP `202026`.
+
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/MaureenMercy/Phase-2-Project-KCA)
 
 ## Prototype voting desks
 

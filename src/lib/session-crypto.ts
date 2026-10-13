@@ -13,6 +13,10 @@ export const REAUTH_WINDOW_MS = 5 * 60 * 1000;
 function getSecret() {
   const secret = process.env.SESSION_SECRET;
   if (secret && secret.length >= 16) return secret;
+  // Prototype/demo hosts may not have a dashboard secret yet. This is not for a live election.
+  if (process.env.VERCEL === "1" || process.env.SAKU_DEMO === "1") {
+    return "saku-prototype-demo-session-secret";
+  }
   if (process.env.NODE_ENV === "production") {
     throw new Error("SESSION_SECRET must be set to a long random value.");
   }

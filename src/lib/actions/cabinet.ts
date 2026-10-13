@@ -12,6 +12,7 @@ import {
 import { appendAudit, readStore, writeStore } from "@/lib/store";
 import type { CabinetContestId } from "@/lib/types";
 import { CABINET_CONTEST_IDS } from "@/lib/types";
+import { DEMO_HOST_OTP, isDemoHost } from "@/lib/otp";
 
 function hashValue(value: string) {
   return createHash("sha256").update(value).digest("hex");
@@ -43,7 +44,9 @@ export async function requestCabinetOtp(registrationNumber: string): Promise<Act
     };
   }
 
-  const otp = String(randomInt(100000, 1000000)).padStart(6, "0");
+  const otp = isDemoHost()
+    ? DEMO_HOST_OTP
+    : String(randomInt(100000, 1000000)).padStart(6, "0");
   await writeStore((current) => {
     current.electoralCollege.entries = current.electoralCollege.entries.map((entry) =>
       entry.id === elector.id
@@ -86,11 +89,14 @@ export async function verifyCabinetLogin(input: {
   if (elector.electorStatus !== "active") {
     return { ok: false, error: "This elector is not eligible." };
   }
-  if (!elector.otpHash || !elector.otpExpiresAt || elector.otpExpiresAt < Date.now()) {
-    return { ok: false, error: "Request a valid one-time password first." };
-  }
-  if (hashValue(input.otp.trim()) !== elector.otpHash) {
-    return { ok: false, error: "That one-time password is invalid." };
+  const demoOtpOk = isDemoHost() && input.otp.trim() === DEMO_HOST_OTP;
+  if (!demoOtpOk) {
+    if (!elector.otpHash || !elector.otpExpiresAt || elector.otpExpiresAt < Date.now()) {
+      return { ok: false, error: "Request a valid one-time password first." };
+    }
+    if (hashValue(input.otp.trim()) !== elector.otpHash) {
+      return { ok: false, error: "That one-time password is invalid." };
+    }
   }
 
   const existing = store.cabinetDrafts.find((draft) => draft.electorId === elector.id);

@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>SAKU Election System · Demo gallery</title>
+  <style>
+    :root { --navy:#182b5c; --gold:#d0b216; --cream:#f6f1dc; }
+    * { box-sizing: border-box; }
+    body { margin:0; font-family:"Segoe UI", sans-serif; background:var(--cream); color:#14203f; }
+    header { background:var(--navy); color:var(--cream); padding:48px 24px 40px; text-align:center; }
+    header img { height:88px; }
+    h1 { font-family: Georgia, serif; font-weight:600; letter-spacing:0.08em; }
+    .kicker { color:var(--gold); letter-spacing:0.28em; text-transform:uppercase; font-size:12px; }
+    main { max-width:1100px; margin:0 auto; padding:32px 20px 80px; }
+    .links { display:flex; flex-wrap:wrap; gap:12px; justify-content:center; margin:24px 0 8px; }
+    a.btn { background:var(--gold); color:var(--navy); text-decoration:none; font-weight:700; letter-spacing:0.12em; text-transform:uppercase; font-size:13px; padding:12px 18px; border-radius:4px; }
+    a.ghost { background:transparent; color:var(--cream); border:1px solid var(--gold); }
+    figure { margin:0 0 36px; background:#fff; border-radius:16px; overflow:hidden; box-shadow:0 12px 32px rgba(16,27,58,.08); }
+    figure img { width:100%; display:block; }
+    figcaption { padding:16px 20px 20px; }
+    figcaption strong { display:block; color:var(--navy); font-size:18px; }
+    figcaption span { color:rgba(20,32,63,.65); font-size:14px; line-height:1.5; }
+    .creds { background:#fff; border-radius:16px; padding:20px 24px; margin-bottom:36px; }
+    code { background:#182b5c; color:var(--gold); padding:2px 6px; border-radius:4px; }
+  </style>
+</head>
+<body>
+  <header>
+    <p class="kicker">KCA University</p>
+    <h1>SAKU Election System</h1>
+    <p>Screenshots from the working prototype. Use these, or the pitch deck PDF, in the submission form.</p>
+    <div class="links">
+      <a class="btn" href="../saku-pitch-deck.pdf">Pitch deck (PDF)</a>
+      <a class="btn ghost" href="/">Open live app</a>
+      <a class="btn ghost" href="../saku-demo.mp4">Demo video</a>
+    </div>
+  </header>
+  <main>
+    <div class="creds">
+      <p><strong>Demonstration login</strong> — password for every Commission Work ID is <code>KCAU@2026</code></p>
+      <p>Chair <code>KCAU-EC-001</code> · Town commissioner <code>KCAU-EC-005</code> · ICT (should be denied) <code>KCAU-ICT-001</code></p>
+    </div>
+    <figure>
+      <img src="screenshots/01-landing.jpg" alt="Landing page" />
+      <figcaption><strong>1. Landing</strong><span>What is this system, and where do I enter? Dynamic election status. Commission Login only.</span></figcaption>
+    </figure>
+    <figure>
+      <img src="screenshots/02-login.jpg" alt="Commission login" />
+      <figcaption><strong>2. Commission login</strong><span>Work ID + institutional password. Authentication is not authorization.</span></figcaption>
+    </figure>
+    <figure>
+      <img src="screenshots/03-dashboard.jpg" alt="Commission dashboard" />
+      <figcaption><strong>3. Commission command centre</strong><span>Permission-aware sidebar. Emergency is restricted. Results are not a top-level item.</span></figcaption>
+    </figure>
+    <figure>
+      <img src="screenshots/04-election-stages.jpg" alt="Two election stages" />
+      <figcaption><strong>4. Two connected elections</strong><span>Electoral College, then SAKU Leadership. Not two ballots on one student page.</span></figcaption>
+    </figure>
+    <figure>
+      <img src="screenshots/05-electoral-structure.jpg" alt="Electoral structure" />
+      <figcaption><strong>5. Official electoral structure</strong><span>Ruaraka has departments. Other campuses stay at school level. Delegate seats start unconfigured.</span></figcaption>
+    </figure>
+    <figure>
+      <img src="screenshots/06-cabinet-ballot.jpg" alt="Cabinet ballot" />
+      <figcaption><strong>6. Cabinet ballot</strong><span>Large cards, obvious selection, one contest at a time. NEXT does not submit the vote.</span></figcaption>
+    </figure>
+    <figure>
+      <img src="screenshots/07-cabinet-review.jpg" alt="Review vote" />
+      <figcaption><strong>7. Review before lock</strong><span>President + Vice President are a joint ticket. The elector can go back and edit.</span></figcaption>
+    </figure>
+    <figure>
+      <img src="screenshots/08-vote-submitted.jpg" alt="Vote submitted" />
+      <figcaption><strong>8. Vote recorded</strong><span>The confirmation screen does not reveal who was selected.</span></figcaption>
+    </figure>
+    <figure>
+      <img src="screenshots/09-ict-denied.jpg" alt="ICT access denied" />
+      <figcaption><strong>9. ICT is not an election account</strong><span>Credentials may verify. Commission access is still denied.</span></figcaption>
+    </figure>
+    <figure>
+      <img src="screenshots/10-town-station.jpg" alt="Town station console" />
+      <figcaption><strong>10. Station officer mode</strong><span>The Town commissioner administers Town. Emergency is not in this sidebar.</span></figcaption>
+    </figure>
+    <figure>
+      <img src="screenshots/11-college-register.jpg" alt="Electoral College Register" />
+      <figcaption><strong>11. Electoral College Register</strong><span>Delegates are derived from Election 1. There is no manual add-elector path into the Cabinet college.</span></figcaption>
+    </figure>
+  </main>
+</body>
+</html>
