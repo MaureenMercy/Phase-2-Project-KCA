@@ -56,7 +56,42 @@ Password for every seeded directory account: `KCAU@2026`
 | `KCAU-EC-007` | Ms. Lydia Achieng | Commissioner (Western) | Station officer functions and candidate approval |
 | `KCAU-ICT-001` | Eng. Peter Kamau | Systems Administrator | Credentials may verify; Commission access is denied |
 
-OTP steps show a demonstration code because the university SMS/email gateway is not wired in this prototype.
+OTP steps show a demonstration code because the university SMS/email gateway is not wired in this prototype. On the Vercel demo host the code is always `202026`.
+
+## How the Chair opens Election 1
+
+Saving the election name and date does **not** configure Election 1. Seats start empty on purpose.
+
+1. Sign in as Chair: Work ID `KCAU-EC-001`, password `KCAU@2026`, OTP `202026`.
+2. On the dashboard, find **How to open Election 1**.
+3. Type `2` and allocate remaining units (or open Election → Electoral College → Electoral structure).
+4. Click **Authorize opening** and re-enter `KCAU@2026` when asked.
+5. The lifecycle pill should read **Voting in progress**.
+
+The in-app copy of this walkthrough is at `/commission/guide`.
+
+## Submission links (paste into the form)
+
+Live app (Vercel): **claim this first** so reviewers can keep using it. Anonymous previews expire in about an hour unless transferred to a Vercel account.
+
+| What the form asks for | Link |
+| --- | --- |
+| Live / hosted system | https://temporary-agile-xenon-dfu2nfz.vercel.app |
+| Keep the live app (claim on Vercel) | https://vercel.com/claim-deployment?code=ddbe590c-1957-4b19-b77c-b6c14b234ece |
+| Pitch deck PDF (~1 MB, 12 slides) | https://temporary-agile-xenon-dfu2nfz.vercel.app/saku-pitch-deck.pdf |
+| Screenshots gallery | https://temporary-agile-xenon-dfu2nfz.vercel.app/demo |
+| Demo video | https://temporary-agile-xenon-dfu2nfz.vercel.app/saku-demo.mp4 |
+
+Durable GitHub copies (do not expire if you claim Vercel too late):
+
+- Pitch deck PDF: https://github.com/MaureenMercy/Phase-2-Project-KCA/blob/cursor/saku-vercel-submission-ffaa/public/saku-pitch-deck.pdf
+- Direct PDF download: https://github.com/MaureenMercy/Phase-2-Project-KCA/raw/cursor/saku-vercel-submission-ffaa/public/saku-pitch-deck.pdf
+- Screenshots: https://github.com/MaureenMercy/Phase-2-Project-KCA/tree/cursor/saku-vercel-submission-ffaa/public/demo/screenshots
+- Demo video: https://github.com/MaureenMercy/Phase-2-Project-KCA/raw/cursor/saku-vercel-submission-ffaa/public/saku-demo.mp4
+
+Chair login: Work ID `KCAU-EC-001`, password `KCAU@2026`, OTP `202026`.
+
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/MaureenMercy/Phase-2-Project-KCA)
 
 ## Prototype voting desks
 

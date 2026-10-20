@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ElectionConfigForm } from "@/components/commission/ElectionConfigForm";
+import { OpeningChecklist } from "@/components/commission/OpeningChecklist";
 import { PageHeader, StatusPill } from "@/components/commission/PageHeader";
 import { resolveUnits, validateElection1Readiness } from "@/lib/electoral";
 import { isAllowedNow } from "@/lib/permissions";
@@ -23,6 +24,13 @@ export default async function ElectionOverviewPage() {
         Election 1 elects delegates. The SAKU leadership election is a second
         stage whose electorate is generated from those results.
       </PageHeader>
+
+      <OpeningChecklist
+        unconfigured={units.filter((unit) => unit.delegateSeats === null).length}
+        registerApproved={store.voterRegister.status === "approved"}
+        canConfigureSeats={isAllowedNow(session.role!, "configure_delegate_seats", store.election.stage)}
+        issues={issues.filter((issue) => issue.code === "seats")}
+      />
 
       <section className="grid gap-4 md:grid-cols-2">
         <Link href="/commission/election/election-1" className="rounded-2xl border border-navy/10 bg-white/90 p-6 hover:border-gold">

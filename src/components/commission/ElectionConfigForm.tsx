@@ -43,7 +43,9 @@ export function ElectionConfigForm({
           setMessage(result.error);
           return;
         }
-        setMessage("Configuration saved.");
+        setMessage(
+          "Election name and times saved. This does not allocate delegate seats. Election 1 still cannot open until every unit has an explicit seat number.",
+        );
         router.refresh();
       }}
     >
