@@ -396,7 +396,7 @@ export async function authorizeElectionOpening(): Promise<ActionResult> {
   if (gate.store.election.contest === "ELECTION_1_DELEGATE" && seatIssues.length) {
     return {
       ok: false,
-      error: "Election 1 cannot open while any electoral unit has an unconfigured delegate-seat allocation.",
+      error: `Election 1 cannot open while ${seatIssues.length} electoral unit${seatIssues.length === 1 ? " has" : "s have"} no delegate-seat number. Saving the election date is not enough. Open Election → Electoral College → Electoral structure and allocate seats, then try opening again.`,
     };
   }
 

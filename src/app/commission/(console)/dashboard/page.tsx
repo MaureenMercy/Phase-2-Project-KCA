@@ -1,13 +1,14 @@
 import Link from "next/link";
 import { AuthorityPanel } from "@/components/commission/AuthorityPanel";
 import { ActionButton } from "@/components/commission/ActionButton";
+import { OpeningChecklist } from "@/components/commission/OpeningChecklist";
 import { PageHeader, StatCard, StatusPill } from "@/components/commission/PageHeader";
 import {
   authorizeElectionClosing,
   authorizeElectionOpening,
   authorizeResults,
 } from "@/lib/actions/auth";
-import { resolveUnits } from "@/lib/electoral";
+import { resolveUnits, validateElection1Readiness } from "@/lib/electoral";
 import { formatDateTime, formatNumber } from "@/lib/format";
 import { CONTEST_LABELS, isAllowedNow, ROLE_LABELS, STAGE_LABELS } from "@/lib/permissions";
 import { requireAuthorizedSession } from "@/lib/session";
@@ -27,6 +28,8 @@ export default async function DashboardPage() {
   const units = resolveUnits(store);
   const unconfigured = units.filter((unit) => unit.delegateSeats === null).length;
   const voted = store.studentElectors.filter((item) => item.voterStatus === "voted").length;
+  const seatIssues = validateElection1Readiness(store).filter((issue) => issue.code === "seats");
+  const canSeats = isAllowedNow(role, "configure_delegate_seats", store.election.stage);
 
   return (
     <div className="space-y-8">
@@ -83,6 +86,15 @@ export default async function DashboardPage() {
             </Link>
           </div>
         </section>
+      ) : null}
+
+      {store.election.stage === "REGISTRATION" ? (
+        <OpeningChecklist
+          unconfigured={unconfigured}
+          registerApproved={store.voterRegister.status === "approved"}
+          canConfigureSeats={canSeats}
+          issues={seatIssues}
+        />
       ) : null}
 
       <AuthorityPanel role={role} stage={store.election.stage} />

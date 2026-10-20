@@ -46,6 +46,13 @@ export const COMMISSION_NAV: NavItem[] = [
     description: "Lifecycle and structure",
   },
   {
+    href: "/commission/guide",
+    label: "How to open",
+    icon: "📘",
+    permission: "view_dashboard",
+    description: "Chair walkthrough",
+  },
+  {
     href: "/commission/incidents",
     label: "Incidents",
     icon: "🚨",

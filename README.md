@@ -58,6 +58,18 @@ Password for every seeded directory account: `KCAU@2026`
 
 OTP steps show a demonstration code because the university SMS/email gateway is not wired in this prototype. On the Vercel demo host the code is always `202026`.
 
+## How the Chair opens Election 1
+
+Saving the election name and date does **not** configure Election 1. Seats start empty on purpose.
+
+1. Sign in as Chair: Work ID `KCAU-EC-001`, password `KCAU@2026`, OTP `202026`.
+2. On the dashboard, find **How to open Election 1**.
+3. Type `2` and allocate remaining units (or open Election → Electoral College → Electoral structure).
+4. Click **Authorize opening** and re-enter `KCAU@2026` when asked.
+5. The lifecycle pill should read **Voting in progress**.
+
+The in-app copy of this walkthrough is at `/commission/guide`.
+
 ## Submission links (paste into the form)
 
 Live app (Vercel): **claim this first** so reviewers can keep using it. Anonymous previews expire in about an hour unless transferred to a Vercel account.
