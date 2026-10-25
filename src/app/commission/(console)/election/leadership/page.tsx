@@ -1,6 +1,9 @@
 import Link from "next/link";
+import { CandidatePhotoUpload } from "@/components/commission/CandidatePhotoUpload";
 import { ModuleSubnav, PageHeader, StatusPill } from "@/components/commission/PageHeader";
 import { CABINET_CONTESTS } from "@/lib/electoral";
+import { overlayCandidatePhotos, overlayPersistedVotes } from "@/lib/ops-overlay";
+import { isAllowedNow } from "@/lib/permissions";
 import { requireAuthorizedSession } from "@/lib/session";
 import { readStore } from "@/lib/store";
 
@@ -8,8 +11,10 @@ export const metadata = { title: "SAKU Leadership Election" };
 export const dynamic = "force-dynamic";
 
 export default async function LeadershipPage() {
-  await requireAuthorizedSession();
-  const store = await readStore();
+  const session = await requireAuthorizedSession();
+  const store = await overlayPersistedVotes(await readStore());
+  const canPlace = isAllowedNow(session.role!, "approve_candidates", store.election.stage);
+  const cabinetCandidates = await overlayCandidatePhotos(store.cabinetCandidates);
 
   return (
     <div className="space-y-6">
@@ -54,18 +59,25 @@ export default async function LeadershipPage() {
             <h2 className="font-serif text-2xl text-navy">{contest.title}</h2>
             <p className="text-xs text-navy/50">{contest.instruction}</p>
             <ul className="mt-4 grid gap-3 md:grid-cols-2">
-              {store.cabinetCandidates
+              {cabinetCandidates
                 .filter((candidate) => candidate.contestId === contest.id)
                 .map((candidate) => (
                   <li key={candidate.id} className="flex items-center gap-3 rounded-xl bg-cream/80 p-3">
                     <img src={candidate.photo} alt="" className="h-14 w-14 rounded-full object-cover" />
-                    <span>
+                    <span className="min-w-0 flex-1">
                       <span className="block font-semibold text-navy">{candidate.fullName}</span>
                       {candidate.runningMateName ? (
                         <span className="text-xs text-navy/60">
                           + {candidate.runningMateName} · {candidate.ticketLabel}
                         </span>
                       ) : null}
+                      <div className="mt-2">
+                        <CandidatePhotoUpload
+                          candidateId={candidate.id}
+                          kind="cabinet"
+                          disabled={!canPlace}
+                        />
+                      </div>
                     </span>
                   </li>
                 ))}

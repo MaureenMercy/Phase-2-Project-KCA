@@ -30,6 +30,7 @@ import {
 import { isReauthFresh } from "@/lib/session-crypto";
 import { appendAudit, readStore, writeStore } from "@/lib/store";
 import type { ElectoralPermission, SessionPayload } from "@/lib/types";
+import { assertSystemAccess } from "@/lib/ops-guard";
 
 export type ActionResult =
   | { ok: true; next?: string; demoOtp?: string | null }
@@ -60,6 +61,13 @@ export async function loginWithWorkId(input: {
   const workId = parsed.data.workId.toUpperCase();
   const { password, trustDevice } = parsed.data;
 
+  const access = await assertSystemAccess({
+    actor: workId,
+    path: "/commission/login",
+    action: "commission_login",
+    surface: "commission",
+  });
+  if (!access.ok) return { ok: false, error: access.error };
 
   const lock = loginLockStatus(workId);
   if (lock.locked) {

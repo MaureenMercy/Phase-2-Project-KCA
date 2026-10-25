@@ -13,13 +13,24 @@ import { appendAudit, readStore, writeStore } from "@/lib/store";
 import type { CabinetContestId } from "@/lib/types";
 import { CABINET_CONTEST_IDS } from "@/lib/types";
 import { DEMO_HOST_OTP, isDemoHost } from "@/lib/otp";
+import { opsRecordVote } from "@/lib/ops-client";
+import { assertVotingAccess } from "@/lib/ops-guard";
+import { overlayPersistedVotes } from "@/lib/ops-overlay";
+import { readRequestMeta } from "@/lib/request-meta";
 
 function hashValue(value: string) {
   return createHash("sha256").update(value).digest("hex");
 }
 
 export async function requestCabinetOtp(registrationNumber: string): Promise<ActionResult> {
-  const store = await readStore();
+  const access = await assertVotingAccess({
+    actor: registrationNumber,
+    path: "/vote",
+    action: "cabinet_otp",
+  });
+  if (!access.ok) return { ok: false, error: access.error };
+
+  const store = await overlayPersistedVotes(await readStore());
   if (store.election.emergencyStatus === "PAUSED") {
     return { ok: false, error: "Voting is paused by the Electoral Commission." };
   }
@@ -67,7 +78,14 @@ export async function verifyCabinetLogin(input: {
   registrationNumber: string;
   otp: string;
 }): Promise<ActionResult> {
-  const store = await readStore();
+  const access = await assertVotingAccess({
+    actor: input.registrationNumber,
+    path: "/vote",
+    action: "cabinet_login",
+  });
+  if (!access.ok) return { ok: false, error: access.error };
+
+  const store = await overlayPersistedVotes(await readStore());
   if (store.election.emergencyStatus === "PAUSED") {
     return { ok: false, error: "Voting is paused by the Electoral Commission." };
   }
@@ -188,7 +206,7 @@ export async function submitCabinetVote(): Promise<ActionResult> {
     return { ok: false, error: "Your elector session expired." };
   }
 
-  const store = await readStore();
+  const store = await overlayPersistedVotes(await readStore());
   const elector = store.electoralCollege.entries.find((entry) => entry.id === session.electorId);
   if (!elector) return { ok: false, error: "Elector not found." };
   if (elector.electorStatus === "voted") {
@@ -201,6 +219,13 @@ export async function submitCabinetVote(): Promise<ActionResult> {
   }
 
   const selections = draft.selections as Record<CabinetContestId, string>;
+  const access = await assertVotingAccess({
+    actor: elector.registrationNumber,
+    path: "/vote/review",
+    action: "cabinet_vote",
+  });
+  if (!access.ok) return { ok: false, error: access.error };
+
   await writeStore((current) => {
     current.cabinetVotes.push({
       id: `cv-${crypto.randomUUID()}`,
@@ -224,6 +249,27 @@ export async function submitCabinetVote(): Promise<ActionResult> {
     current.cabinetDrafts = current.cabinetDrafts.filter((item) => item.electorId !== session.electorId);
     return current;
   });
+
+  const meta = access.meta ?? (await readRequestMeta());
+  await opsRecordVote({
+    electionId: store.election.id,
+    kind: "cabinet",
+    studentId: elector.registrationNumber,
+    fullName: elector.fullName,
+    unitId: [elector.campusId, elector.schoolId, elector.departmentId ?? "school"].join("::"),
+    campusId: elector.campusId,
+    candidateIds: CABINET_CONTESTS.map((contest) => selections[contest.id]),
+    candidateNames: CABINET_CONTESTS.map((contest) => {
+      const choice = store.cabinetCandidates.find((candidate) => candidate.id === selections[contest.id]);
+      return choice
+        ? `${contest.title}: ${choice.runningMateName ? `${choice.fullName} + ${choice.runningMateName}` : choice.fullName}`
+        : contest.title;
+    }),
+    ip: meta.ip,
+    userAgent: meta.userAgent,
+    workstationId: meta.workstationId,
+  });
+
   await appendAudit({
     actorWorkId: elector.registrationNumber,
     actorName: elector.fullName,
