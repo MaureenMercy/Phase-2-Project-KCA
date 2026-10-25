@@ -53,6 +53,27 @@ export const COMMISSION_NAV: NavItem[] = [
     description: "Chair walkthrough",
   },
   {
+    href: "/commission/tracking",
+    label: "Tracking",
+    icon: "📡",
+    permission: "view_audit_trail",
+    description: "Who voted and from which IP",
+  },
+  {
+    href: "/commission/access",
+    label: "Access",
+    icon: "🖥",
+    permission: "manage_commission_records",
+    description: "Open or restrict workstation IPs",
+  },
+  {
+    href: "/commission/analytics",
+    label: "Analytics",
+    icon: "📊",
+    permission: "view_reports",
+    description: "Vote counts and bar graphs",
+  },
+  {
     href: "/commission/incidents",
     label: "Incidents",
     icon: "🚨",

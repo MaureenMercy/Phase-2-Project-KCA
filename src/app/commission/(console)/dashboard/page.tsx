@@ -11,6 +11,7 @@ import {
 import { resolveUnits, validateElection1Readiness } from "@/lib/electoral";
 import { formatDateTime, formatNumber } from "@/lib/format";
 import { CONTEST_LABELS, isAllowedNow, ROLE_LABELS, STAGE_LABELS } from "@/lib/permissions";
+import { overlayPersistedVotes } from "@/lib/ops-overlay";
 import { requireAuthorizedSession } from "@/lib/session";
 import { readStore } from "@/lib/store";
 
@@ -19,7 +20,7 @@ export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
   const session = await requireAuthorizedSession();
-  const store = await readStore();
+  const store = await overlayPersistedVotes(await readStore());
   const role = session.role!;
   const pendingCandidates = store.candidates.filter((item) => item.status === "pending");
   const assigned = store.pollingStations.filter((station) =>

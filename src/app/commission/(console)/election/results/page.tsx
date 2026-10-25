@@ -1,9 +1,12 @@
 import { ActionButton } from "@/components/commission/ActionButton";
+import { AnalyticsBars } from "@/components/commission/AnalyticsBars";
 import { PageHeader } from "@/components/commission/PageHeader";
 import { authorizeResults } from "@/lib/actions/auth";
 import { CABINET_CONTESTS } from "@/lib/electoral";
 import { formatDateTime } from "@/lib/format";
 import { isAllowedNow } from "@/lib/permissions";
+import { opsAnalytics } from "@/lib/ops-client";
+import { overlayPersistedVotes } from "@/lib/ops-overlay";
 import { requireAuthorizedSession } from "@/lib/session";
 import { readStore } from "@/lib/store";
 
@@ -12,9 +15,10 @@ export const dynamic = "force-dynamic";
 
 export default async function ElectionResultsPage() {
   const session = await requireAuthorizedSession();
-  const store = await readStore();
+  const store = await overlayPersistedVotes(await readStore());
   const canView = store.election.stage === "CLOSED" || store.election.stage === "CERTIFIED";
   const canAuthorize = isAllowedNow(session.role!, "authorize_results", store.election.stage);
+  const analytics = canView ? await opsAnalytics() : null;
 
   const cabinetTotals = CABINET_CONTESTS.map((contest) => {
     const counts = new Map<string, number>();
@@ -72,6 +76,12 @@ export default async function ElectionResultsPage() {
               </ul>
             </section>
           ))}
+          <AnalyticsBars
+            title="Stored Election 1 tallies"
+            hint="From the operations database after results are opened."
+            rows={analytics?.byCandidate ?? []}
+          />
+          <AnalyticsBars title="Stored Cabinet tallies" rows={analytics?.byCabinetCandidate ?? []} />
         </div>
       )}
 

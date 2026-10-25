@@ -37,6 +37,7 @@ yarn-error.log*
 # local election store
 /data/store.json
 /data/evidence/
+/data/mongo/
 
 # vercel
 .vercel

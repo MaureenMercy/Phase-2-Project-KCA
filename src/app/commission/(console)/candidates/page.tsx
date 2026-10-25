@@ -1,6 +1,8 @@
 import { CandidateDecision } from "@/components/commission/CandidateDecision";
+import { CandidatePhotoUpload } from "@/components/commission/CandidatePhotoUpload";
 import { ModuleSubnav, PageHeader } from "@/components/commission/PageHeader";
 import { formatDateTime } from "@/lib/format";
+import { overlayCandidatePhotos } from "@/lib/ops-overlay";
 import { isAllowedNow } from "@/lib/permissions";
 import { requireAuthorizedSession } from "@/lib/session";
 import { readStore } from "@/lib/store";
@@ -12,6 +14,7 @@ export default async function CandidatesPage() {
   const session = await requireAuthorizedSession();
   const store = await readStore();
   const canDecide = isAllowedNow(session.role!, "approve_candidates", store.election.stage);
+  const candidates = await overlayCandidatePhotos(store.candidates);
 
   return (
     <div className="space-y-6">
@@ -36,11 +39,12 @@ export default async function CandidatesPage() {
               <th className="px-4 py-3">Position</th>
               <th className="px-4 py-3">Ticket</th>
               <th className="px-4 py-3">Status</th>
-              <th className="px-4 py-3">Action</th>
+                  <th className="px-4 py-3">Portrait</th>
+                  <th className="px-4 py-3">Action</th>
             </tr>
           </thead>
           <tbody>
-            {store.candidates.map((candidate) => (
+            {candidates.map((candidate) => (
               <tr key={candidate.id} className="border-t border-navy/10">
                 <td className="px-4 py-4">
                   <div className="flex items-center gap-3">
@@ -62,6 +66,9 @@ export default async function CandidatesPage() {
                       {candidate.reviewedBy} · {formatDateTime(candidate.reviewedAt ?? null)}
                     </span>
                   ) : null}
+                </td>
+                <td className="px-4 py-4">
+                  <CandidatePhotoUpload candidateId={candidate.id} kind="leadership" disabled={!canDecide} />
                 </td>
                 <td className="px-4 py-4">
                   {candidate.status === "pending" ? (
