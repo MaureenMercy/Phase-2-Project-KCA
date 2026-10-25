@@ -1,3 +1,4 @@
+import fs from "node:fs";
 import path from "node:path";
 import mongoose from "mongoose";
 
@@ -11,11 +12,13 @@ export async function connectDb() {
 
   if (!process.env.MONGODB_URI) {
     const { MongoMemoryServer } = await import("mongodb-memory-server");
+    const dbPath = path.join(process.cwd(), "data", "mongo");
+    fs.mkdirSync(dbPath, { recursive: true });
     memory = await MongoMemoryServer.create({
       instance: {
         port: PORT,
         dbName: "saku",
-        dbPath: path.join(process.cwd(), "data", "mongo"),
+        dbPath,
         storageEngine: "wiredTiger",
       },
     });
