@@ -1,5 +1,12 @@
 import { createHash, randomInt, timingSafeEqual } from "node:crypto";
 
+/** Stable demonstration OTP on serverless hosts where in-memory maps do not survive. */
+export const DEMO_HOST_OTP = "202026";
+
+export function isDemoHost() {
+  return process.env.VERCEL === "1" || process.env.SAKU_DEMO === "1";
+}
+
 const otpStore = new Map<
   string,
   { hash: string; demoOtp: string; expiresAt: number }
@@ -15,7 +22,9 @@ function hashValue(value: string) {
 }
 
 export function issueOtp(userId: string) {
-  const demoOtp = String(randomInt(100000, 1000000)).padStart(6, "0");
+  const demoOtp = isDemoHost()
+    ? DEMO_HOST_OTP
+    : String(randomInt(100000, 1000000)).padStart(6, "0");
   otpStore.set(userId, {
     hash: hashValue(demoOtp),
     demoOtp,
@@ -25,12 +34,14 @@ export function issueOtp(userId: string) {
 }
 
 export function peekDemoOtp(userId: string) {
+  if (isDemoHost()) return DEMO_HOST_OTP;
   const pending = otpStore.get(userId);
   if (!pending || pending.expiresAt < Date.now()) return null;
   return pending.demoOtp;
 }
 
 export function verifyOtp(userId: string, otp: string) {
+  if (isDemoHost() && otp.trim() === DEMO_HOST_OTP) return true;
   const pending = otpStore.get(userId);
   if (!pending) return false;
   if (pending.expiresAt < Date.now()) {

@@ -1,5 +1,6 @@
 import { ActionButton } from "@/components/commission/ActionButton";
 import { CampusSeatForm } from "@/components/commission/CampusSeatForm";
+import { CandidatePhotoUpload } from "@/components/commission/CandidatePhotoUpload";
 import { SeatConfigForm } from "@/components/commission/SeatConfigForm";
 import { ModuleSubnav, PageHeader, StatusPill } from "@/components/commission/PageHeader";
 import {
@@ -10,6 +11,7 @@ import {
 } from "@/lib/actions/election";
 import { candidatesForUnit, resolveUnits, unitLabel } from "@/lib/electoral";
 import { formatNumber } from "@/lib/format";
+import { overlayCandidatePhotos, overlayPersistedVotes } from "@/lib/ops-overlay";
 import { isAllowedNow } from "@/lib/permissions";
 import { requireAuthorizedSession } from "@/lib/session";
 import { readStore } from "@/lib/store";
@@ -34,7 +36,11 @@ export default async function Election1Page({
   searchParams: Promise<{ tab?: string; campus?: string }>;
 }) {
   const session = await requireAuthorizedSession();
-  const store = await readStore();
+  const persisted = await overlayPersistedVotes(await readStore());
+  const store = {
+    ...persisted,
+    delegateCandidates: await overlayCandidatePhotos(persisted.delegateCandidates),
+  };
   const { tab: rawTab, campus } = await searchParams;
   const tab = TABS.some((item) => item.id === rawTab) ? rawTab! : "overview";
   const units = resolveUnits(store);
@@ -183,9 +189,18 @@ export default async function Election1Page({
                   {candidates.map((candidate) => (
                     <li key={candidate.id} className="flex items-center gap-3 rounded-xl bg-cream/70 p-3">
                       <img src={candidate.photo} alt="" className="h-12 w-12 rounded-full object-cover" />
-                      <span>
+                      <span className="min-w-0 flex-1">
                         <span className="block font-semibold text-navy">{candidate.fullName}</span>
                         <span className="text-xs text-navy/50">{candidate.approvalStatus} · {candidate.votesReceived} votes</span>
+                        {tab === "candidates" ? (
+                          <div className="mt-2">
+                            <CandidatePhotoUpload
+                              candidateId={candidate.id}
+                              kind="delegate"
+                              disabled={!canSeats}
+                            />
+                          </div>
+                        ) : null}
                       </span>
                     </li>
                   ))}

@@ -81,9 +81,13 @@ export async function uploadIncidentEvidence(
   }
 
   const storedName = `${incident.reference}-${crypto.randomUUID()}-${file.name.replace(/[^\w.-]/g, "_")}`;
-  await mkdir(EVIDENCE_DIR, { recursive: true });
   const buffer = Buffer.from(await file.arrayBuffer());
-  await writeFile(path.join(EVIDENCE_DIR, storedName), buffer);
+  try {
+    await mkdir(EVIDENCE_DIR, { recursive: true });
+    await writeFile(path.join(EVIDENCE_DIR, storedName), buffer);
+  } catch {
+    // Evidence metadata is still recorded if the host filesystem is read-only.
+  }
 
   const evidenceRef = `EVD-${incident.reference}-${incident.evidence.length + 1}`;
   await writeStore((store) => {

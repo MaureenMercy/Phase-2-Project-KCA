@@ -5,6 +5,10 @@ import { generateElection1Ballot, unitForStudent } from "@/lib/electoral";
 import { clearElectorSession, saveElectorSession } from "@/lib/elector-session";
 import { appendAudit, readStore, writeStore } from "@/lib/store";
 import type { ActionResult } from "@/lib/actions/auth";
+import { opsRecordVote } from "@/lib/ops-client";
+import { assertVotingAccess } from "@/lib/ops-guard";
+import { overlayPersistedVotes } from "@/lib/ops-overlay";
+import { readRequestMeta } from "@/lib/request-meta";
 
 const STUDENT_PIN = "SAKU2026";
 
@@ -12,7 +16,14 @@ export async function studentElectorLogin(input: {
   studentId: string;
   pin: string;
 }): Promise<ActionResult> {
-  const store = await readStore();
+  const access = await assertVotingAccess({
+    actor: input.studentId,
+    path: "/elector",
+    action: "elector_login",
+  });
+  if (!access.ok) return { ok: false, error: access.error };
+
+  const store = await overlayPersistedVotes(await readStore());
   if (store.election.emergencyStatus === "PAUSED") {
     return { ok: false, error: "Voting is paused by the Electoral Commission." };
   }
@@ -63,7 +74,7 @@ export async function castElection1Vote(candidateIds: string[]): Promise<ActionR
     return { ok: false, error: "Your elector session expired." };
   }
 
-  const store = await readStore();
+  const store = await overlayPersistedVotes(await readStore());
   const student = store.studentElectors.find((item) => item.studentId === session.electorId);
   if (!student) return { ok: false, error: "Elector record not found." };
   if (student.voterStatus === "voted") {
@@ -82,6 +93,13 @@ export async function castElection1Vote(candidateIds: string[]): Promise<ActionR
   if (candidateIds.some((id) => !allowed.has(id))) {
     return { ok: false, error: "You may only vote for candidates in your electoral unit." };
   }
+
+  const access = await assertVotingAccess({
+    actor: student.studentId,
+    path: "/elector/ballot",
+    action: "election1_vote",
+  });
+  if (!access.ok) return { ok: false, error: access.error };
 
   await writeStore((current) => {
     current.delegateVotes.push({
@@ -105,6 +123,23 @@ export async function castElection1Vote(candidateIds: string[]): Promise<ActionR
       station.votesCast += 1;
     }
     return current;
+  });
+
+  const meta = access.meta ?? (await readRequestMeta());
+  await opsRecordVote({
+    electionId: store.election.id,
+    kind: "election1",
+    studentId: student.studentId,
+    fullName: student.fullName,
+    unitId: ballot.unit.id,
+    campusId: ballot.unit.campusId,
+    candidateIds,
+    candidateNames: ballot.candidates
+      .filter((candidate) => candidateIds.includes(candidate.id))
+      .map((candidate) => candidate.fullName),
+    ip: meta.ip,
+    userAgent: meta.userAgent,
+    workstationId: meta.workstationId,
   });
 
   await appendAudit({

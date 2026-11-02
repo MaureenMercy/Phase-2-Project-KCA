@@ -3,6 +3,7 @@ import { BallotFrame } from "@/components/ballot/BallotFrame";
 import { CabinetReview } from "@/components/ballot/CabinetBallot";
 import { isCabinetBallotComplete } from "@/lib/electoral";
 import { readElectorSession } from "@/lib/elector-session";
+import { overlayCandidatePhotos } from "@/lib/ops-overlay";
 import { readStore } from "@/lib/store";
 
 export const metadata = { title: "Review your vote" };
@@ -14,10 +15,11 @@ export default async function CabinetReviewPage() {
   const store = await readStore();
   const draft = store.cabinetDrafts.find((item) => item.electorId === session.electorId);
   if (!draft || !isCabinetBallotComplete(draft.selections)) redirect("/vote/ballot");
+  const candidates = await overlayCandidatePhotos(store.cabinetCandidates);
 
   return (
     <BallotFrame title="SAKU Cabinet Election">
-      <CabinetReview selections={draft.selections} candidates={store.cabinetCandidates} />
+      <CabinetReview selections={draft.selections} candidates={candidates} />
     </BallotFrame>
   );
 }
