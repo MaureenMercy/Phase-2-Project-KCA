@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>SAKU Election System — Pitch Deck</title>
+  <style>
+    @page { size: 13.333in 7.5in; margin: 0; }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: #101b3a; }
+    body { font-family: "Segoe UI", "Source Sans 3", sans-serif; color: #14203f; }
+    .slide {
+      width: 13.333in;
+      height: 7.5in;
+      page-break-after: always;
+      break-after: page;
+      overflow: hidden;
+      position: relative;
+      padding: 0.55in 0.65in;
+    }
+    .slide:last-child { page-break-after: auto; }
+    .navy { background: #182b5c; color: #f6f1dc; }
+    .cream { background: #f6f1dc; color: #14203f; }
+    .split { display: grid; grid-template-columns: 1.05fr 0.95fr; gap: 0.4in; height: 100%; padding: 0.45in 0.55in; }
+    h1 { font-family: Georgia, "Times New Roman", serif; font-weight: 600; margin: 0; }
+    h2 { font-family: Georgia, "Times New Roman", serif; font-weight: 600; margin: 0 0 0.18in; font-size: 38px; color: #182b5c; }
+    .gold { color: #d0b216; }
+    .kicker { letter-spacing: 0.28em; text-transform: uppercase; font-size: 12px; color: #d0b216; font-weight: 700; }
+    .muted { color: rgba(246,241,220,0.72); }
+    .ink-muted { color: rgba(20,32,63,0.68); }
+    p { line-height: 1.45; }
+    ul { margin: 0.12in 0 0; padding-left: 0.28in; }
+    li { margin: 0.08in 0; line-height: 1.4; }
+    img.shot {
+      width: 100%;
+      height: 5.55in;
+      object-fit: cover;
+      object-position: top;
+      border-radius: 14px;
+      box-shadow: 0 18px 40px rgba(16,27,58,0.28);
+      background: #fff;
+    }
+    .shot-wrap { align-self: center; }
+    .logo { height: 1.15in; }
+    .footer {
+      position: absolute; left: 0.65in; right: 0.65in; bottom: 0.28in;
+      display: flex; justify-content: space-between; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase;
+    }
+    .pill { display: inline-block; background: #d0b216; color: #182b5c; padding: 0.08in 0.16in; border-radius: 999px; font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+    .card { background: #fff; border-radius: 16px; padding: 0.22in; box-shadow: 0 10px 24px rgba(16,27,58,0.08); }
+    .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.22in; margin-top: 0.28in; }
+    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0.22in; margin-top: 0.22in; }
+    table { width: 100%; border-collapse: collapse; font-size: 15px; }
+    th { text-align: left; font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: #d0b216; padding: 0.08in 0; }
+    td { padding: 0.07in 0.08in 0.07in 0; border-top: 1px solid rgba(208,178,22,0.25); }
+    code { font-family: ui-monospace, monospace; }
+  </style>
+</head>
+<body>
+  <section class="slide navy">
+    <p class="kicker">KCA University · Phase 2 Project</p>
+    <img class="logo" src="../public/kca-logo.png" alt="KCA University" style="margin-top:0.35in" />
+    <h1 style="font-size:64px; margin-top:0.35in; color:#fff;">SAKU Election System</h1>
+    <p class="gold" style="font-size:22px; margin-top:0.12in;">Secure electronic election management for the Students Association of KCA University</p>
+    <p class="muted" style="max-width:9.5in; font-size:18px; margin-top:0.28in;">Not an online form for collecting votes. A command interface for administering a two-stage student election — with authority, audit, and a controlled ballot.</p>
+    <p class="pill" style="margin-top:0.4in;">Prototype · Validation build · 2026</p>
+    <div class="footer"><span>SAKU Electoral Commission</span><span>01 / 12</span></div>
+  </section>
+
+  <section class="slide cream">
+    <p class="kicker" style="color:#a88e10;">The problem</p>
+    <h2>Student elections need more than a survey.</h2>
+    <div class="grid2">
+      <div class="card">
+        <p style="margin:0; font-weight:700; color:#182b5c;">What breaks with ordinary online forms</p>
+        <ul class="ink-muted">
+          <li>Anyone can be shown every candidate list</li>
+          <li>Login success is treated as full power</li>
+          <li>No station-level election officer record</li>
+          <li>Results leak as public percentages</li>
+          <li>No auditable pause, opening, or declaration</li>
+        </ul>
+      </div>
+      <div class="card">
+        <p style="margin:0; font-weight:700; color:#182b5c;">What SAKU actually requires</p>
+        <ul class="ink-muted">
+          <li>A large-electorate delegate election, then a closed Cabinet election</li>
+          <li>Official campus / school / department structure</li>
+          <li>Commissioners who also run polling stations</li>
+          <li>ICT kept outside election-operational accounts</li>
+          <li>Evidence that can later support disputes — without the system judging them</li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer" style="color:#182b5c;"><span>SAKU Electoral Commission</span><span>02 / 12</span></div>
+  </section>
+
+  <section class="slide cream">
+    <p class="kicker" style="color:#a88e10;">The solution</p>
+    <h2>One platform. Role-based views. Clear technical boundaries.</h2>
+    <div class="grid3">
+      <div class="card"><p class="kicker" style="color:#a88e10;">Commission</p><p>Administrative command interface for seven members. Desktop-first. Authentication is not authorization.</p></div>
+      <div class="card"><p class="kicker" style="color:#a88e10;">Election 1</p><p>Eligible students elect delegates from their own electoral unit. School and department are derived, never chosen.</p></div>
+      <div class="card"><p class="kicker" style="color:#a88e10;">Cabinet</p><p>Delegates vote a sequential ballot. President + Vice President run as one ticket. One elector, one completed vote.</p></div>
+    </div>
+    <p class="ink-muted" style="margin-top:0.35in; font-size:18px;">ICT still exists — for servers, databases, backups, and monitoring — but it is not an election account and cannot enter this portal.</p>
+    <div class="footer" style="color:#182b5c;"><span>SAKU Electoral Commission</span><span>03 / 12</span></div>
+  </section>
+
+  <section class="slide cream">
+    <p class="kicker" style="color:#a88e10;">Authority model</p>
+    <h2>Seven Commission members. One shell. Different actions.</h2>
+    <table>
+      <thead><tr><th>Role</th><th>Primary responsibility</th><th>Restricted powers</th></tr></thead>
+      <tbody>
+        <tr><td>Chair</td><td>Overall Commission authority</td><td>Results authorization · emergency initiation</td></tr>
+        <tr><td>Vice Chair</td><td>Senior co-authorization</td><td>Emergency second signature · cannot certify results</td></tr>
+        <tr><td>Secretary General</td><td>Records, coordination, registers</td><td>No final opening / closing / results</td></tr>
+        <tr><td>Commissioner · Ruaraka</td><td>Station election officer</td><td>Town / Kitengela / Western functions stay out of reach</td></tr>
+        <tr><td>Commissioner · Town</td><td>Station election officer</td><td>Assignment, not a second account type</td></tr>
+        <tr><td>Commissioner · Kitengela</td><td>Station election officer</td><td>Incident log rolls up to the centre</td></tr>
+        <tr><td>Commissioner · Western</td><td>Station election officer</td><td>Phone access is evidence upload only</td></tr>
+      </tbody>
+    </table>
+    <div class="footer" style="color:#182b5c;"><span>SAKU Electoral Commission</span><span>04 / 12</span></div>
+  </section>
+
+  <section class="slide cream">
+    <p class="kicker" style="color:#a88e10;">Electoral design</p>
+    <h2>Two connected elections — not two ballots on one page.</h2>
+    <div class="grid2">
+      <div class="card" style="background:#182b5c; color:#f6f1dc;">
+        <p class="gold" style="margin:0;">Election 1 · Electoral College</p>
+        <p>Electorate: eligible KCA students (mock first-year register in this prototype).</p>
+        <p>They vote only for approved delegate candidates in their own campus / school / department unit.</p>
+        <p>Delegate seats stay unconfigured until the Commission enters an authoritative number. Nothing is defaulted to 3.</p>
+      </div>
+      <div class="card">
+        <p class="kicker" style="color:#a88e10; margin:0;">Election 2 · SAKU Cabinet</p>
+        <p>Electorate: the Electoral College Register, generated automatically from confirmed Election 1 winners.</p>
+        <p>No manual “add elector” workflow. Registration number + OTP. Sequential contests. Joint presidential ticket. Vote locks on final submit.</p>
+      </div>
+    </div>
+    <div class="footer" style="color:#182b5c;"><span>SAKU Electoral Commission</span><span>05 / 12</span></div>
+  </section>
+
+  <section class="slide cream split">
+    <div>
+      <p class="kicker" style="color:#a88e10;">Landing</p>
+      <h2>What is this system, and where do I enter?</h2>
+      <p class="ink-muted">The public page stays deliberately small. Status is dynamic — registration, voting, or results pending — without becoming a public results dashboard.</p>
+      <p class="ink-muted">Brand colours are KCA deep blue <strong>#182B5C</strong> and gold <strong>#D0B216</strong>.</p>
+    </div>
+    <div class="shot-wrap"><img class="shot" src="../public/demo/screenshots/01-landing.jpg" alt="Landing page" /></div>
+    <div class="footer" style="color:#182b5c; left:0.55in; right:0.55in;"><span>SAKU Electoral Commission</span><span>06 / 12</span></div>
+  </section>
+
+  <section class="slide cream split">
+    <div>
+      <p class="kicker" style="color:#a88e10;">Commission portal</p>
+      <h2>A command centre, not a website theme.</h2>
+      <p class="ink-muted">Persistent sidebar. Election and stage in the top bar. Emergency stays a restricted control for Chair and Vice Chair. Results are reached through the election workflow, not as another hamburger item.</p>
+    </div>
+    <div class="shot-wrap"><img class="shot" src="../public/demo/screenshots/03-dashboard.jpg" alt="Commission dashboard" /></div>
+    <div class="footer" style="color:#182b5c; left:0.55in; right:0.55in;"><span>SAKU Electoral Commission</span><span>07 / 12</span></div>
+  </section>
+
+  <section class="slide cream split">
+    <div>
+      <p class="kicker" style="color:#a88e10;">Cabinet ballot</p>
+      <h2>Simple to vote. Impossible to treat as a public poll.</h2>
+      <p class="ink-muted">Large selectable cards. Navy selected state. One contest at a time. NEXT keeps a choice; it does not submit. The success screen never shows who was selected.</p>
+    </div>
+    <div class="shot-wrap"><img class="shot" src="../public/demo/screenshots/06-cabinet-ballot.jpg" alt="Cabinet ballot" /></div>
+    <div class="footer" style="color:#182b5c; left:0.55in; right:0.55in;"><span>SAKU Electoral Commission</span><span>08 / 12</span></div>
+  </section>
+
+  <section class="slide cream split">
+    <div>
+      <p class="kicker" style="color:#a88e10;">Stations</p>
+      <h2>Commissioners are the clerks.</h2>
+      <p class="ink-muted">Assignment activates election-officer functions for Ruaraka, Town, Kitengela, and Western. Physical readiness, then open, monitor, record incidents, close. The system already knows which station the commissioner is reporting from.</p>
+    </div>
+    <div class="shot-wrap"><img class="shot" src="../public/demo/screenshots/10-town-station.jpg" alt="Town polling station console" /></div>
+    <div class="footer" style="color:#182b5c; left:0.55in; right:0.55in;"><span>SAKU Electoral Commission</span><span>09 / 12</span></div>
+  </section>
+
+  <section class="slide cream">
+    <p class="kicker" style="color:#a88e10;">Trust</p>
+    <h2>Security that can be demonstrated in a viva.</h2>
+    <div class="grid3">
+      <div class="card"><strong>Work ID + password + OTP</strong><p class="ink-muted">Institutional credentials, not a hard-coded National ID scheme.</p></div>
+      <div class="card"><strong>Permission check</strong><p class="ink-muted">Identity → role → election assignment → stage → access.</p></div>
+      <div class="card"><strong>High-risk re-auth</strong><p class="ink-muted">Opening, closing, results, and emergency require a fresh password.</p></div>
+      <div class="card"><strong>Two-person emergency</strong><p class="ink-muted">Chair initiates, Vice Chair authorizes. The initiator cannot sign their own pause.</p></div>
+      <div class="card"><strong>ICT denial</strong><p class="ink-muted">Technical staff may authenticate and still be refused this portal.</p></div>
+      <div class="card"><strong>Audit trail</strong><p class="ink-muted">Electoral actions, structural changes, and evidence references — not raw server logs.</p></div>
+    </div>
+    <div class="footer" style="color:#182b5c;"><span>SAKU Electoral Commission</span><span>10 / 12</span></div>
+  </section>
+
+  <section class="slide navy">
+    <p class="kicker">Demonstration access</p>
+    <h1 style="font-size:42px; color:#fff; margin:0.2in 0 0.25in;">Try the prototype</h1>
+    <p class="muted">Password for every seeded directory account: <span class="gold">KCAU@2026</span></p>
+    <table style="margin-top:0.2in; max-width:11.5in;">
+      <thead><tr><th>Work ID</th><th>Name</th><th>What you will see</th></tr></thead>
+      <tbody>
+        <tr><td><code>KCAU-EC-001</code></td><td>Prof. Amina Wanjiku</td><td>Chair · full electoral authority</td></tr>
+        <tr><td><code>KCAU-EC-005</code></td><td>Ms. Faith Chebet</td><td>Town station officer · no Emergency item</td></tr>
+        <tr><td><code>KCAU-ICT-001</code></td><td>Eng. Peter Kamau</td><td>Credentials verify · Commission access denied</td></tr>
+      </tbody>
+    </table>
+    <p class="muted" style="margin-top:0.28in;">Election 1 desk uses Student ID + PIN <span class="gold">SAKU2026</span>. Cabinet desk unlocks after the Electoral College Register is generated from Election 1 results.</p>
+    <div class="footer"><span>This is a mock / validation prototype. No live ERP or fee-clearance integration.</span><span>11 / 12</span></div>
+  </section>
+
+  <section class="slide navy">
+    <img class="logo" src="../public/kca-logo.png" alt="KCA University" />
+    <h1 style="font-size:52px; color:#fff; margin-top:0.4in;">Secure · Transparent · Accessible</h1>
+    <p class="gold" style="font-size:22px;">SAKU Election System · KCA University</p>
+    <p class="muted" style="margin-top:0.35in; max-width:10in; font-size:18px;">The system preserves the operational record. It does not adjudicate disputes. It does not invent delegate seats. It does not treat a successful login as permission to run the election.</p>
+    <p class="pill" style="margin-top:0.45in;">Thank you</p>
+    <div class="footer"><span>Phase 2 Project · Electoral Commission slice</span><span>12 / 12</span></div>
+  </section>
+</body>
+</html>
