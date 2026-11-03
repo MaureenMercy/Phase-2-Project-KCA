@@ -26,7 +26,7 @@ Authentication is not authorization. A commissioner may sign in successfully and
 
 ## Run locally
 
-The pages stay on Next.js (port 3000). Vote records, workstation IPs, access policy, and candidate portraits persist on a separate operations API (port 4000) backed by MongoDB (port 27017). If the API is down, voting still works against the in-page store; tracking and IP restrictions pause.
+The pages stay on Next.js (port 3000). Vote records, workstation IPs, access policy, and candidate portraits persist in the separate `backend/` package (Express API on port 4000) backed by MongoDB (port 27017). If the API is down, voting still works against the in-page store; tracking and IP restrictions pause.
 
 ```bash
 npm install
@@ -35,7 +35,7 @@ cp .env.example .env.local
 npm run dev:stack
 ```
 
-`npm run dev:stack` starts MongoDB (embedded on 27017 unless `MONGODB_URI` is set), the operations API on 4000, and the Next.js UI on 3000. Use `npm run api` if you only need the backend.
+`npm run dev:stack` starts MongoDB (embedded on 27017 unless `MONGODB_URI` is set), the `backend/` API on 4000, and the Next.js UI on 3000. Use `npm run api` or `npm run dev:backend` if you only need the backend folder.
 
 Open [http://localhost:3000](http://localhost:3000).
 

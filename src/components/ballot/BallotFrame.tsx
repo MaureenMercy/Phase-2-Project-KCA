@@ -1,4 +1,4 @@
-import { KcaCrest } from "@/components/brand/KcaCrest";
+import { BrandLogo } from "@/components/brand/BrandLogo";
 
 export function BallotFrame({
   title,
@@ -13,7 +13,7 @@ export function BallotFrame({
     <main className="ballot-desk min-h-screen bg-[#f7f7f8] px-4 py-10 text-navy">
       <div className="mx-auto w-full max-w-xl">
         <div className="mb-8 flex flex-col items-center text-center">
-          <KcaCrest className="h-16 w-auto" />
+          <BrandLogo className="h-24 w-auto" surface="light" priority />
           <p className="mt-4 text-[11px] tracking-[0.28em] text-navy/40 uppercase">
             KCA University · SAKU
           </p>

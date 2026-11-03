@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
-import { KcaMark } from "@/components/brand/KcaCrest";
+import { BrandMark } from "@/components/brand/BrandLogo";
 import { KcaWatermark } from "@/components/brand/KcaWatermark";
 import { logoutAction, logoutAndForgetDevice } from "@/lib/actions/auth";
 import { navForPermissions } from "@/lib/nav";
@@ -112,7 +112,7 @@ function TopBar({
         >
           <MenuIcon />
         </button>
-        <KcaMark className="hidden h-8 w-8 sm:block" />
+        <BrandMark className="hidden h-10 w-auto max-w-[148px] sm:block" />
         <p className="min-w-0 flex-1 truncate font-serif text-sm tracking-[0.22em] text-white uppercase md:text-base">
           SAKU Election System
         </p>

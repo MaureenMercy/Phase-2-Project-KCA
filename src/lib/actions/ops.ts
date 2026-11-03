@@ -6,7 +6,7 @@ import { opsHealth, opsSavePhoto, opsSavePolicy } from "@/lib/ops-client";
 import { isAllowedNow } from "@/lib/permissions";
 import { requireAuthorizedSession } from "@/lib/session";
 import { appendAudit, readStore } from "@/lib/store";
-import { parseAllowlist } from "../../../server/ip";
+import { parseAllowlist } from "@/lib/ip-policy";
 
 export async function saveAccessPolicy(input: {
   mode: "open" | "allowlist";
