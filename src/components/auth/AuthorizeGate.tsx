@@ -1,16 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
 import { commitCommissionAccess, completeAuthorization } from "@/lib/actions/auth";
 import type { PipelineStep } from "@/lib/types";
 
 export function AuthorizeGate() {
-  const router = useRouter();
   const [visibleCount, setVisibleCount] = useState(0);
   const [steps, setSteps] = useState<PipelineStep[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [granted, setGranted] = useState<boolean | null>(null);
+  const continued = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -20,7 +19,7 @@ export function AuthorizeGate() {
       if (cancelled) return;
 
       if ("alreadyAuthorized" in decision && decision.alreadyAuthorized) {
-        router.replace("/commission/dashboard");
+        window.location.replace("/commission/dashboard");
         return;
       }
 
@@ -33,38 +32,40 @@ export function AuthorizeGate() {
     return () => {
       cancelled = true;
     };
-  }, [router]);
+  }, []);
 
   useEffect(() => {
     if (steps.length === 0) return;
     const timer = window.setInterval(() => {
-      setVisibleCount((count) => {
-        if (count >= steps.length) {
-          window.clearInterval(timer);
-          return count;
-        }
-        return count + 1;
-      });
+      setVisibleCount((count) => (count >= steps.length ? count : count + 1));
     }, 420);
     return () => window.clearInterval(timer);
   }, [steps]);
 
   useEffect(() => {
+    if (continued.current) return;
     if (steps.length === 0 || visibleCount < steps.length || granted === null) {
       return;
     }
-    const timeout = window.setTimeout(() => {
-      void (async () => {
-        if (granted) {
-          const result = await commitCommissionAccess();
-          router.replace(result.ok ? "/commission/dashboard" : "/commission/denied");
-          return;
-        }
-        router.replace("/commission/denied");
-      })();
-    }, 900);
-    return () => window.clearTimeout(timeout);
-  }, [granted, router, steps.length, visibleCount]);
+    continued.current = true;
+    const destination = granted ? "/commission/dashboard" : "/commission/denied";
+    // A soft router.replace stays pending in dev ("Rendering…") after the
+    // session cookie update refreshes this page. A full load always settles.
+    const failsafe = window.setTimeout(() => {
+      window.location.assign(destination);
+    }, 4000);
+
+    void (async () => {
+      if (!granted) {
+        window.clearTimeout(failsafe);
+        window.location.assign(destination);
+        return;
+      }
+      const result = await commitCommissionAccess();
+      window.clearTimeout(failsafe);
+      window.location.assign(result.ok ? "/commission/dashboard" : "/commission/denied");
+    })();
+  }, [granted, steps.length, visibleCount]);
 
   return (
     <div className="mt-8 space-y-3 text-left">

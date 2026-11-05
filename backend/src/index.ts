@@ -5,7 +5,17 @@ import express from "express";
 import cors from "cors";
 import { connectDb } from "./db";
 import { evaluateAccess, parseAllowlist, type AccessMode } from "./ip";
-import { EventModel, PhotoModel, PolicyModel, VoteModel } from "./models";
+import {
+  AttemptModel,
+  DirectoryModel,
+  EventModel,
+  MembershipModel,
+  OtpModel,
+  PhotoModel,
+  PolicyModel,
+  RegistryModel,
+  VoteModel,
+} from "./models";
 
 function loadEnvFile(filePath: string) {
   if (!fs.existsSync(filePath)) return;
@@ -233,6 +243,247 @@ app.get("/photos/:id", async (req, res) => {
   res.setHeader("Content-Type", photo.mimeType);
   res.setHeader("Cache-Control", "private, max-age=60");
   return res.send(buffer);
+});
+
+function withoutMongoId<T extends Record<string, unknown>>(doc: T | null) {
+  if (!doc) return null;
+  const { _id: _ignored, ...rest } = doc;
+  return rest;
+}
+
+type DirectoryBody = {
+  id?: unknown;
+  workId?: unknown;
+  fullName?: unknown;
+  shortName?: unknown;
+  title?: unknown;
+  email?: unknown;
+  passwordHash?: unknown;
+  accountKind?: unknown;
+};
+
+type MemberBody = {
+  id?: unknown;
+  userId?: unknown;
+  role?: unknown;
+  electionId?: unknown;
+  pollingStationIds?: unknown;
+  active?: unknown;
+};
+
+app.put("/directory/sync", async (req, res) => {
+  const accounts: DirectoryBody[] = Array.isArray(req.body.accounts) ? req.body.accounts : [];
+  const members: MemberBody[] = Array.isArray(req.body.members) ? req.body.members : [];
+  const accountRows = accounts.filter(
+    (account): account is DirectoryBody & { id: unknown; workId: unknown; passwordHash: unknown } =>
+      Boolean(account && account.id && account.workId && account.passwordHash),
+  );
+  const memberRows = members.filter(
+    (member): member is MemberBody & { id: unknown; userId: unknown } =>
+      Boolean(member && member.id && member.userId),
+  );
+  if (accountRows.length) {
+    await DirectoryModel.bulkWrite(
+      accountRows.map((account) => ({
+          updateOne: {
+            filter: { workId: String(account.workId).toUpperCase() },
+            update: {
+              $set: {
+                id: String(account.id),
+                workId: String(account.workId).toUpperCase(),
+                fullName: String(account.fullName ?? ""),
+                shortName: String(account.shortName ?? ""),
+                title: String(account.title ?? ""),
+                email: String(account.email ?? ""),
+                passwordHash: String(account.passwordHash),
+                accountKind: account.accountKind === "technical" || account.accountKind === "staff" ? account.accountKind : "commission",
+              },
+            },
+            upsert: true,
+          },
+        })),
+    );
+  }
+  if (memberRows.length) {
+    await MembershipModel.bulkWrite(
+      memberRows.map((member) => ({
+          updateOne: {
+            filter: { id: String(member.id) },
+            update: {
+              $set: {
+                id: String(member.id),
+                userId: String(member.userId),
+                role: String(member.role ?? ""),
+                electionId: String(member.electionId ?? ""),
+                pollingStationIds: Array.isArray(member.pollingStationIds) ? member.pollingStationIds.map(String) : [],
+                active: member.active !== false,
+              },
+            },
+            upsert: true,
+          },
+        })),
+    );
+  }
+  res.json({
+    accounts: await DirectoryModel.countDocuments(),
+    members: await MembershipModel.countDocuments(),
+  });
+});
+
+app.get("/directory/accounts", async (req, res) => {
+  const workId = typeof req.query.workId === "string" ? req.query.workId.toUpperCase() : "";
+  const id = typeof req.query.id === "string" ? req.query.id : "";
+  const account = workId
+    ? await DirectoryModel.findOne({ workId }).lean()
+    : id
+      ? await DirectoryModel.findOne({ id }).lean()
+      : null;
+  if (!account) return res.status(404).json({ error: "Directory account was not found." });
+  return res.json(withoutMongoId(account));
+});
+
+app.get("/directory/members", async (req, res) => {
+  const userId = typeof req.query.userId === "string" ? req.query.userId : "";
+  if (!userId) return res.status(400).json({ error: "A user id is required." });
+  const member = await MembershipModel.findOne({ userId }).lean();
+  if (!member) return res.status(404).json({ error: "Commission membership was not found." });
+  return res.json(withoutMongoId(member));
+});
+
+app.put("/auth/otp/:userId", async (req, res) => {
+  const saved = await OtpModel.findOneAndUpdate(
+    { userId: req.params.userId },
+    {
+      userId: req.params.userId,
+      hash: String(req.body.hash ?? ""),
+      demoOtp: String(req.body.demoOtp ?? ""),
+      expiresAt: Number(req.body.expiresAt ?? 0),
+    },
+    { upsert: true, new: true },
+  ).lean();
+  res.json(withoutMongoId(saved));
+});
+
+app.get("/auth/otp/:userId", async (req, res) => {
+  const pending = await OtpModel.findOne({ userId: req.params.userId }).lean();
+  if (!pending) return res.status(404).json({ error: "No one-time password is waiting." });
+  return res.json(withoutMongoId(pending));
+});
+
+app.delete("/auth/otp/:userId", async (req, res) => {
+  await OtpModel.deleteOne({ userId: req.params.userId });
+  res.json({ ok: true });
+});
+
+app.get("/auth/attempts/:workId", async (req, res) => {
+  const attempt = await AttemptModel.findOne({ workId: req.params.workId.toUpperCase() }).lean();
+  if (!attempt) return res.status(404).json({ error: "No failed attempts are stored." });
+  return res.json(withoutMongoId(attempt));
+});
+
+app.put("/auth/attempts/:workId", async (req, res) => {
+  const workId = req.params.workId.toUpperCase();
+  const saved = await AttemptModel.findOneAndUpdate(
+    { workId },
+    {
+      workId,
+      count: Number(req.body.count ?? 0),
+      lockedUntil: req.body.lockedUntil ? Number(req.body.lockedUntil) : undefined,
+    },
+    { upsert: true, new: true },
+  ).lean();
+  res.json(withoutMongoId(saved));
+});
+
+app.delete("/auth/attempts/:workId", async (req, res) => {
+  await AttemptModel.deleteOne({ workId: req.params.workId.toUpperCase() });
+  res.json({ ok: true });
+});
+
+app.get("/registry", async (_req, res) => {
+  const registry = await RegistryModel.findOne({ key: "app" }).lean();
+  if (!registry) return res.status(404).json({ error: "The election registry has not been stored yet." });
+  return res.json({ updatedAt: registry.updatedAt, payload: registry.payload });
+});
+
+app.put("/registry", async (req, res) => {
+  if (!req.body.payload || typeof req.body.payload !== "object") {
+    return res.status(400).json({ error: "Registry payload is missing." });
+  }
+  const updatedAt = Number(req.body.updatedAt ?? Date.now());
+  await RegistryModel.findOneAndUpdate(
+    { key: "app" },
+    { key: "app", updatedAt, payload: req.body.payload },
+    { upsert: true },
+  );
+  return res.json({ ok: true, updatedAt });
+});
+
+app.get("/records/summary", async (_req, res) => {
+  const [accounts, members, registry, ballots, events, portraits, otpChallenges] = await Promise.all([
+    DirectoryModel.find({}, { passwordHash: 0 }).lean(),
+    MembershipModel.find().lean(),
+    RegistryModel.findOne({ key: "app" }).lean(),
+    VoteModel.countDocuments(),
+    EventModel.find().sort({ at: -1 }).limit(12).lean(),
+    PhotoModel.countDocuments(),
+    OtpModel.countDocuments(),
+  ]);
+  const payload = (registry?.payload ?? {}) as {
+    studentElectors?: Array<{ studentId?: string; fullName?: string; voterStatus?: string; eligibilityStatus?: string }>;
+    electoralCollege?: { entries?: Array<{ registrationNumber?: string; fullName?: string; electorStatus?: string }> };
+    delegateVotes?: unknown[];
+    cabinetVotes?: unknown[];
+    auditLog?: unknown[];
+    voterRegister?: { version?: string; status?: string; voterCount?: number };
+  };
+  const roleByUser = new Map(members.map((member) => [member.userId, member.role]));
+  const electors = payload.studentElectors ?? [];
+  const college = payload.electoralCollege?.entries ?? [];
+  res.json({
+    database: "saku",
+    storage: process.env.MONGODB_URI ? "MongoDB" : "MongoDB (embedded, data/mongo)",
+    registryUpdatedAt: registry?.updatedAt ?? null,
+    counts: {
+      commissionAccounts: accounts.length,
+      memberships: members.length,
+      studentElectors: electors.length,
+      collegeElectors: college.length,
+      delegateVotes: payload.delegateVotes?.length ?? 0,
+      cabinetVotes: payload.cabinetVotes?.length ?? 0,
+      storedBallots: ballots,
+      accessEvents: await EventModel.countDocuments(),
+      portraits,
+      otpChallenges,
+      auditEntries: payload.auditLog?.length ?? 0,
+    },
+    voterRegister: payload.voterRegister ?? null,
+    accounts: accounts.map((account) => ({
+      workId: account.workId,
+      fullName: account.fullName,
+      title: account.title,
+      accountKind: account.accountKind,
+      role: roleByUser.get(account.id) ?? null,
+    })),
+    electors: electors.slice(0, 40).map((student) => ({
+      studentId: student.studentId ?? "",
+      fullName: student.fullName ?? "",
+      voterStatus: student.voterStatus ?? "",
+      eligibilityStatus: student.eligibilityStatus ?? "",
+    })),
+    college: college.slice(0, 20).map((entry) => ({
+      registrationNumber: entry.registrationNumber ?? "",
+      fullName: entry.fullName ?? "",
+      electorStatus: entry.electorStatus ?? "",
+    })),
+    recentAccess: events.map((event) => ({
+      at: event.at,
+      action: event.action,
+      actor: event.actor ?? "",
+      path: event.path ?? "",
+      allowed: event.allowed,
+    })),
+  });
 });
 
 app.put("/photos/:id", async (req, res) => {

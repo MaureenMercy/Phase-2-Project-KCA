@@ -1,5 +1,6 @@
 import { CommissionShell } from "@/components/commission/CommissionShell";
 import { SessionGuard } from "@/components/commission/SessionGuard";
+import { navForPermissions } from "@/lib/nav";
 import { activePermissions } from "@/lib/permissions";
 import { requireAuthorizedSession } from "@/lib/session";
 import { readStore } from "@/lib/store";
@@ -36,7 +37,7 @@ export default async function ConsoleLayout({
       stage={store.election.stage}
       contest={store.election.contest}
       emergencyPaused={store.election.emergencyStatus === "PAUSED"}
-      permissions={permissions}
+      items={navForPermissions(permissions)}
       notifications={notifications}
     >
       <SessionGuard />

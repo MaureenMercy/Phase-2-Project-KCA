@@ -98,6 +98,22 @@ export default async function DashboardPage() {
         />
       ) : null}
 
+      <section className="rounded-2xl border border-gold bg-white/90 p-6">
+        <p className="text-[10px] tracking-[0.18em] text-gold-dim uppercase">Voting desks</p>
+        <h2 className="mt-1 font-serif text-2xl text-navy">Voter sign-in, then the elector desk</h2>
+        <p className="mt-2 max-w-2xl text-sm leading-6 text-navy/65">
+          Students sign in at the voter desk after Election 1 is opened. Electoral
+          college electors sign in only after those results are finalized and the
+          register is activated. Any commissioner can preview both portals first.
+        </p>
+        <Link
+          className="mt-4 inline-flex rounded-sm bg-navy px-4 py-2 text-xs font-bold tracking-[0.16em] text-cream uppercase"
+          href="/commission/desks"
+        >
+          Open the setup guide
+        </Link>
+      </section>
+
       <AuthorityPanel role={role} stage={store.election.stage} />
 
       <section className="rounded-2xl border border-navy/10 bg-white/90 p-6">

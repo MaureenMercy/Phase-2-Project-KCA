@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { requestCabinetOtp, verifyCabinetLogin } from "@/lib/actions/cabinet";
 
-export function CabinetLogin() {
+export function CabinetLogin({ preview = false }: { preview?: boolean }) {
   const router = useRouter();
   const [registrationNumber, setRegistrationNumber] = useState("");
   const [otp, setOtp] = useState("");
@@ -19,6 +19,11 @@ export function CabinetLogin() {
         event.preventDefault();
         setPending(true);
         setError(null);
+        if (preview) {
+          setPending(false);
+          router.push("/preview/elector/ballot");
+          return;
+        }
         const result = await verifyCabinetLogin({ registrationNumber, otp });
         setPending(false);
         if (!result.ok) {
@@ -43,6 +48,10 @@ export function CabinetLogin() {
           className="rounded-2xl bg-[#f3f3f4] px-4 py-3 text-sm font-semibold"
           onClick={async () => {
             setError(null);
+            if (preview) {
+              setDemoOtp("202026");
+              return;
+            }
             const result = await requestCabinetOtp(registrationNumber);
             if (!result.ok) {
               setError(result.error);
@@ -75,7 +84,7 @@ export function CabinetLogin() {
         disabled={pending}
         className="w-full rounded-2xl bg-navy py-4 text-sm font-bold tracking-[0.18em] text-white uppercase"
       >
-        {pending ? "Verifying…" : "Unlock ballot"}
+        {pending ? "Verifying…" : preview ? "Preview the ballot" : "Unlock ballot"}
       </button>
     </form>
   );

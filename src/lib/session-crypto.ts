@@ -1,11 +1,12 @@
 import { createHash } from "node:crypto";
 import { EncryptJWT, jwtDecrypt, errors as joseErrors } from "jose";
+import { SESSION_IDLE_MS } from "@/lib/session-limits";
 import type { ElectorSessionPayload, SessionPayload } from "@/lib/types";
 
+export { SESSION_IDLE_MS };
 export const SESSION_COOKIE = "saku_ec_session";
 export const TRUSTED_DEVICE_COOKIE = "saku_ec_trusted";
 export const ELECTOR_COOKIE = "saku_elector_session";
-export const SESSION_IDLE_MS = 30 * 60 * 1000;
 export const SESSION_ABSOLUTE_SECONDS = 12 * 60 * 60;
 export const TRUSTED_DEVICE_SECONDS = 30 * 24 * 60 * 60;
 export const REAUTH_WINDOW_MS = 5 * 60 * 1000;

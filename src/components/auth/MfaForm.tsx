@@ -1,11 +1,9 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { useRouter } from "next/navigation";
 import { verifyMfa } from "@/lib/actions/auth";
 
 export function MfaForm({ demoOtp }: { demoOtp: string | null }) {
-  const router = useRouter();
   const [digits, setDigits] = useState(["", "", "", "", "", ""]);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
@@ -31,7 +29,7 @@ export function MfaForm({ demoOtp }: { demoOtp: string | null }) {
       setError(result.error);
       return;
     }
-    router.push(result.next ?? "/commission/authorize");
+    window.location.assign(result.next ?? "/commission/authorize");
   }
 
   return (

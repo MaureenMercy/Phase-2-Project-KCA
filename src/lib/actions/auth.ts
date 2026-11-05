@@ -3,6 +3,7 @@
 import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { evaluateCommissionAccess } from "@/lib/authorization";
 import { isAllowedNow, isHighRisk, ROLE_LABELS } from "@/lib/permissions";
 import {
@@ -13,11 +14,7 @@ import {
   registerFailedLogin,
   verifyOtp,
 } from "@/lib/otp";
-import {
-  findCommissionMemberByUserId,
-  findDirectoryUser,
-  findDirectoryUserById,
-} from "@/lib/seed";
+import { resolveCommissionMember, resolveDirectoryUser, resolveDirectoryUserById } from "@/lib/directory-db";
 import {
   clearSession,
   clearTrustedDevice,
@@ -69,7 +66,7 @@ export async function loginWithWorkId(input: {
   });
   if (!access.ok) return { ok: false, error: access.error };
 
-  const lock = loginLockStatus(workId);
+  const lock = await loginLockStatus(workId);
   if (lock.locked) {
     return {
       ok: false,
@@ -77,7 +74,7 @@ export async function loginWithWorkId(input: {
     };
   }
 
-  const user = findDirectoryUser(workId);
+  const user = await resolveDirectoryUser(workId);
   const passwordOk = user
     ? await bcrypt.compare(password, user.passwordHash)
     : await bcrypt.compare(
@@ -86,7 +83,7 @@ export async function loginWithWorkId(input: {
       );
 
   if (!user || !passwordOk || user.workId !== workId) {
-    const failure = registerFailedLogin(workId);
+    const failure = await registerFailedLogin(workId);
     if (failure.locked) {
       return {
         ok: false,
@@ -96,7 +93,7 @@ export async function loginWithWorkId(input: {
     return genericCredentialError();
   }
 
-  clearLoginFailures(workId);
+  await clearLoginFailures(workId);
 
   const trusted = await readTrustedDevice();
   const trustedMatch = trusted?.userId === user.id && trusted?.workId === user.workId;
@@ -115,18 +112,19 @@ export async function loginWithWorkId(input: {
 
   if (trustedMatch) {
     await saveSession({ ...base, state: "pending_authorization" });
-    return { ok: true, next: "/commission/authorize" };
+    redirect("/commission/authorize");
   }
 
-  issueOtp(user.id);
+  await issueOtp(user.id);
   await saveSession({ ...base, state: "pending_mfa" });
-  return { ok: true, next: "/commission/mfa" };
+  redirect("/commission/mfa");
 }
 
 export async function getDemoOtp() {
   const session = await readSession();
   if (!session || session.state !== "pending_mfa") return null;
-  return peekDemoOtp(session.userId);
+  // A dev reload drops the in-memory code while the sign-in cookie remains.
+  return (await peekDemoOtp(session.userId)) ?? (await issueOtp(session.userId));
 }
 
 export async function verifyMfa(otp: string): Promise<ActionResult> {
@@ -139,7 +137,7 @@ export async function verifyMfa(otp: string): Promise<ActionResult> {
     return { ok: false, error: "Enter the 6-digit one-time password." };
   }
 
-  if (!verifyOtp(session.userId, otp)) {
+  if (!(await verifyOtp(session.userId, otp))) {
     return { ok: false, error: "That one-time password is invalid or has expired." };
   }
 
@@ -200,8 +198,8 @@ export async function completeAuthorization() {
     };
   }
 
-  const user = findDirectoryUserById(session.userId);
-  const member = findCommissionMemberByUserId(session.userId);
+  const user = await resolveDirectoryUserById(session.userId);
+  const member = await resolveCommissionMember(session.userId);
   const store = await readStore();
 
   const decision = evaluateCommissionAccess({
@@ -248,8 +246,8 @@ export async function commitCommissionAccess() {
   }
   if (session.state === "authorized") return { ok: true as const };
 
-  const user = findDirectoryUserById(session.userId);
-  const member = findCommissionMemberByUserId(session.userId);
+  const user = await resolveDirectoryUserById(session.userId);
+  const member = await resolveCommissionMember(session.userId);
   const store = await readStore();
   const decision = evaluateCommissionAccess({
     credentialsValid: true,
@@ -297,7 +295,7 @@ export async function logoutAndForgetDevice() {
 
 export async function reauthenticate(password: string): Promise<ActionResult> {
   const session = await requireAuthorizedSession();
-  const user = findDirectoryUserById(session.userId);
+  const user = await resolveDirectoryUserById(session.userId);
   if (!user) return { ok: false, error: "Account could not be verified." };
   const ok = await bcrypt.compare(password, user.passwordHash);
   if (!ok) return { ok: false, error: "Password is incorrect." };

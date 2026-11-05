@@ -153,6 +153,134 @@ export async function opsListPhotos() {
   );
 }
 
+export async function opsSyncDirectory(input: { accounts: unknown[]; members: unknown[] }) {
+  return opsFetch<{ accounts: number; members: number }>("/directory/sync", {
+    method: "PUT",
+    body: JSON.stringify(input),
+  });
+}
+
+export async function opsFindAccount(query: { workId?: string; id?: string }) {
+  const params = new URLSearchParams();
+  if (query.workId) params.set("workId", query.workId);
+  if (query.id) params.set("id", query.id);
+  return opsFetch<{
+    id: string;
+    workId: string;
+    fullName: string;
+    shortName: string;
+    title: string;
+    email: string;
+    passwordHash: string;
+    accountKind: "commission" | "technical" | "staff";
+  }>(`/directory/accounts?${params.toString()}`);
+}
+
+export async function opsFindMember(userId: string) {
+  return opsFetch<{
+    id: string;
+    userId: string;
+    role: "CHAIR" | "VICE_CHAIR" | "SECRETARY_GENERAL" | "COMMISSIONER";
+    electionId: string;
+    pollingStationIds: string[];
+    active: boolean;
+  }>(`/directory/members?userId=${encodeURIComponent(userId)}`);
+}
+
+export async function opsSaveOtp(userId: string, record: { hash: string; demoOtp: string; expiresAt: number }) {
+  return opsFetch(`/auth/otp/${encodeURIComponent(userId)}`, {
+    method: "PUT",
+    body: JSON.stringify(record),
+  });
+}
+
+export async function opsGetOtp(userId: string) {
+  return opsFetch<{ hash: string; demoOtp: string; expiresAt: number }>(
+    `/auth/otp/${encodeURIComponent(userId)}`,
+  );
+}
+
+export async function opsDeleteOtp(userId: string) {
+  return opsFetch(`/auth/otp/${encodeURIComponent(userId)}`, { method: "DELETE" });
+}
+
+export async function opsGetAttempt(workId: string) {
+  return opsFetch<{ count: number; lockedUntil?: number }>(
+    `/auth/attempts/${encodeURIComponent(workId)}`,
+  );
+}
+
+export async function opsSaveAttempt(workId: string, record: { count: number; lockedUntil?: number }) {
+  return opsFetch(`/auth/attempts/${encodeURIComponent(workId)}`, {
+    method: "PUT",
+    body: JSON.stringify(record),
+  });
+}
+
+export async function opsClearAttempt(workId: string) {
+  return opsFetch(`/auth/attempts/${encodeURIComponent(workId)}`, { method: "DELETE" });
+}
+
+export async function opsLoadRegistry() {
+  return opsFetch<{ updatedAt: number; payload: unknown }>("/registry");
+}
+
+export async function opsSaveRegistry(payload: unknown, updatedAt: number) {
+  return opsFetch<{ ok: boolean; updatedAt: number }>("/registry", {
+    method: "PUT",
+    body: JSON.stringify({ payload, updatedAt }),
+  });
+}
+
+export type RecordsSummary = {
+  database: string;
+  storage: string;
+  registryUpdatedAt: number | null;
+  counts: {
+    commissionAccounts: number;
+    memberships: number;
+    studentElectors: number;
+    collegeElectors: number;
+    delegateVotes: number;
+    cabinetVotes: number;
+    storedBallots: number;
+    accessEvents: number;
+    portraits: number;
+    otpChallenges: number;
+    auditEntries: number;
+  };
+  voterRegister: { version?: string; status?: string; voterCount?: number } | null;
+  accounts: Array<{
+    workId: string;
+    fullName: string;
+    title: string;
+    accountKind: string;
+    role: string | null;
+  }>;
+  electors: Array<{
+    studentId: string;
+    fullName: string;
+    voterStatus: string;
+    eligibilityStatus: string;
+  }>;
+  college: Array<{
+    registrationNumber: string;
+    fullName: string;
+    electorStatus: string;
+  }>;
+  recentAccess: Array<{
+    at: string;
+    action: string;
+    actor: string;
+    path: string;
+    allowed: boolean;
+  }>;
+};
+
+export async function opsRecordsSummary() {
+  return opsFetch<RecordsSummary>("/records/summary");
+}
+
 export function opsPhotoUrl(candidateId: string) {
   return `/api/ops/photos/${encodeURIComponent(candidateId)}`;
 }

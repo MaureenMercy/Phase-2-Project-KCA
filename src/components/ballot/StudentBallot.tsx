@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { castElection1Vote, studentElectorLogin } from "@/lib/actions/elector";
 import type { DelegateCandidate } from "@/lib/types";
 
-export function StudentLogin() {
+export function StudentLogin({ preview = false }: { preview?: boolean }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
 
@@ -14,6 +14,10 @@ export function StudentLogin() {
       className="space-y-4 rounded-[28px] bg-white p-6 shadow-sm ring-1 ring-black/5"
       onSubmit={async (event) => {
         event.preventDefault();
+        if (preview) {
+          router.push("/preview/voter/ballot");
+          return;
+        }
         const data = new FormData(event.currentTarget);
         const result = await studentElectorLogin({
           studentId: String(data.get("studentId") ?? ""),
@@ -36,7 +40,7 @@ export function StudentLogin() {
       </label>
       {error ? <p className="text-sm text-red-700">{error}</p> : null}
       <button className="w-full rounded-2xl bg-navy py-4 text-sm font-bold tracking-[0.16em] text-white uppercase" type="submit">
-        Open my ballot
+        {preview ? "Preview the ballot" : "Open my ballot"}
       </button>
       <p className="text-xs text-navy/40">
         Your electoral unit is taken from the student record. You cannot change school or department.
@@ -49,10 +53,12 @@ export function StudentBallotForm({
   unitLabel,
   seats,
   candidates,
+  preview = false,
 }: {
   unitLabel: string;
   seats: number;
   candidates: DelegateCandidate[];
+  preview?: boolean;
 }) {
   const router = useRouter();
   const [selected, setSelected] = useState<string[]>([]);
@@ -107,7 +113,11 @@ export function StudentBallotForm({
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
           <div className="w-full max-w-md rounded-[28px] bg-white p-6">
             <p className="font-serif text-2xl">Submit this ballot?</p>
-            <p className="mt-2 text-sm text-navy/60">Once submitted, it cannot be changed.</p>
+            <p className="mt-2 text-sm text-navy/60">
+              {preview
+                ? "This is a preview. Confirming does not store a ballot."
+                : "Once submitted, it cannot be changed."}
+            </p>
             <div className="mt-5 flex gap-3">
               <button type="button" className="flex-1 rounded-2xl bg-[#f3f3f4] py-3" onClick={() => setConfirm(false)}>
                 Cancel
@@ -116,6 +126,11 @@ export function StudentBallotForm({
                 type="button"
                 className="flex-1 rounded-2xl bg-navy py-3 font-bold text-white"
                 onClick={async () => {
+                  if (preview) {
+                    setError("Preview only. No ballot was stored.");
+                    setConfirm(false);
+                    return;
+                  }
                   const result = await castElection1Vote(selected);
                   if (!result.ok) {
                     setError(result.error);

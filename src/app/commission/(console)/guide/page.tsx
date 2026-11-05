@@ -80,6 +80,14 @@ export default async function GuidePage() {
         <h2 className="font-serif text-2xl text-navy">After it is open</h2>
         <ul className="mt-3 list-disc space-y-2 pl-5">
           <li>
+            The full setup, including how to activate the elector desk after
+            Election 1, is on{" "}
+            <Link className="font-semibold text-navy underline" href="/commission/desks">
+              Voting desks
+            </Link>
+            . Commissioners can preview both portals from that page.
+          </li>
+          <li>
             Election 1 voting desk:{" "}
             <Link className="font-semibold text-navy underline" href="/elector">
               /elector

@@ -1,8 +1,10 @@
 import "server-only";
 
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { cookies } from "next/headers";
+import { ensureDirectorySynced } from "@/lib/directory-db";
+import { opsLoadRegistry, opsSaveRegistry } from "@/lib/ops-client";
 import { createInitialStore } from "@/lib/seed";
 import { cookieBaseOptions } from "@/lib/session-crypto";
 import {
@@ -24,6 +26,7 @@ type GlobalStore = {
   __sakuStore?: AppStore;
   __sakuStoreAt?: number;
   __sakuWriteQueue?: Promise<void>;
+  __sakuRegistrySynced?: boolean;
 };
 
 const globalStore = globalThis as typeof globalThis & GlobalStore;
@@ -54,6 +57,34 @@ async function persist(store: AppStore, at = Date.now()) {
   } catch {
     await persistToCookies(store, at);
   }
+  await opsSaveRegistry(store, at);
+}
+
+async function loadFromFile(): Promise<{ store: AppStore; at: number }> {
+  try {
+    const [raw, info] = await Promise.all([readFile(STORE_PATH, "utf8"), stat(STORE_PATH)]);
+    return { store: migrate(JSON.parse(raw) as Partial<AppStore>), at: info.mtimeMs };
+  } catch {
+    return { store: createInitialStore(), at: 0 };
+  }
+}
+
+async function reconcileRegistry() {
+  if (!canPersistToDisk() || globalStore.__sakuRegistrySynced || !globalStore.__sakuStore) return;
+  const localAt = globalStore.__sakuStoreAt ?? 0;
+  const remote = await opsLoadRegistry();
+  const remoteAt = remote?.updatedAt ?? 0;
+  if (remote && remoteAt > localAt && remote.payload && typeof remote.payload === "object") {
+    const store = migrate(remote.payload as Partial<AppStore>);
+    globalStore.__sakuStore = store;
+    globalStore.__sakuStoreAt = remoteAt;
+  } else {
+    const at = localAt || Date.now();
+    globalStore.__sakuStoreAt = at;
+    await opsSaveRegistry(globalStore.__sakuStore, at);
+  }
+  globalStore.__sakuRegistrySynced = true;
+  await ensureDirectorySynced();
 }
 
 async function persistToCookies(store: AppStore, at: number) {
@@ -108,19 +139,14 @@ export async function readStore(): Promise<AppStore> {
     }
   }
 
-  if (globalStore.__sakuStore) return structuredClone(globalStore.__sakuStore);
-
-  try {
-    const raw = await readFile(STORE_PATH, "utf8");
-    const parsed = migrate(JSON.parse(raw) as Partial<AppStore>);
-    globalStore.__sakuStore = parsed;
-    return structuredClone(parsed);
-  } catch {
-    const initial = createInitialStore();
-    globalStore.__sakuStore = initial;
-    await persist(initial);
-    return structuredClone(initial);
+  if (!globalStore.__sakuStore) {
+    const loaded = await loadFromFile();
+    globalStore.__sakuStore = loaded.store;
+    globalStore.__sakuStoreAt = loaded.at;
   }
+
+  await reconcileRegistry();
+  return structuredClone(globalStore.__sakuStore!);
 }
 
 export async function writeStore(

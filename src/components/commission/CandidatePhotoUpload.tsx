@@ -28,12 +28,19 @@ export function CandidatePhotoUpload({
     setPending(true);
     setMessage(null);
     const data = await readAsBase64(file);
-    const result = await uploadCandidatePhoto({
-      candidateId,
-      kind,
-      mimeType: file.type,
-      data,
-    });
+    let result: Awaited<ReturnType<typeof uploadCandidatePhoto>>;
+    try {
+      result = await uploadCandidatePhoto({
+        candidateId,
+        kind,
+        mimeType: file.type,
+        data,
+      });
+    } catch {
+      setPending(false);
+      setMessage("The portrait did not reach the server. Refresh the page and try again.");
+      return;
+    }
     setPending(false);
     if (!result.ok) {
       setMessage(result.error);

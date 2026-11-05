@@ -53,6 +53,13 @@ export const COMMISSION_NAV: NavItem[] = [
     description: "Chair walkthrough",
   },
   {
+    href: "/commission/desks",
+    label: "Voting desks",
+    icon: "🪪",
+    permission: "view_dashboard",
+    description: "Voter and elector setup",
+  },
+  {
     href: "/commission/tracking",
     label: "Tracking",
     icon: "📡",
@@ -114,6 +121,13 @@ export const COMMISSION_NAV: NavItem[] = [
     icon: "🔐",
     permission: "view_audit_trail",
     description: "Electoral action log",
+  },
+  {
+    href: "/commission/database",
+    label: "Database",
+    icon: "🗄",
+    permission: "view_dashboard",
+    description: "Accounts, electors, and ballots",
   },
   {
     href: "/commission/emergency",

@@ -26,7 +26,14 @@ export function ActionButton({
   async function execute() {
     setPending(true);
     setMessage(null);
-    const result = await run();
+    let result: ActionResult;
+    try {
+      result = await run();
+    } catch {
+      setPending(false);
+      setMessage("The request did not reach the server. Refresh the page and try again.");
+      return;
+    }
     setPending(false);
     if (result.ok) {
       router.refresh();

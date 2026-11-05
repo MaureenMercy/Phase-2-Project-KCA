@@ -1,12 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { loginWithWorkId } from "@/lib/actions/auth";
 import { DEMO_ACCOUNTS, DEMO_PASSWORD } from "@/lib/demo-accounts";
 
 export function LoginForm() {
-  const router = useRouter();
   const [workId, setWorkId] = useState("");
   const [password, setPassword] = useState("");
   const [trustDevice, setTrustDevice] = useState(false);
@@ -22,9 +20,7 @@ export function LoginForm() {
     setPending(false);
     if (!result.ok) {
       setError(result.error);
-      return;
     }
-    router.push(result.next ?? "/commission/mfa");
   }
 
   return (

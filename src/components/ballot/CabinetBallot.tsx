@@ -10,22 +10,56 @@ export function CabinetBallot({
   step,
   selections,
   candidates,
+  preview = false,
 }: {
   step: number;
   selections: Partial<Record<CabinetContestId, string>>;
   candidates: CabinetCandidate[];
+  preview?: boolean;
 }) {
-  const contest = CABINET_CONTESTS[Math.min(step, 5)];
+  const [localStep, setLocalStep] = useState(step);
+  const [localSelections, setLocalSelections] = useState<Partial<Record<CabinetContestId, string>>>({});
+  const [reviewing, setReviewing] = useState(false);
+  const activeStep = preview ? localStep : step;
+  const activeSelections = preview ? localSelections : selections;
+  const contest = CABINET_CONTESTS[Math.min(activeStep, 5)];
   const options = candidates.filter((candidate) => candidate.contestId === contest.id);
-  const selected = selections[contest.id] ?? null;
+  const selected = activeSelections[contest.id] ?? null;
   const [choice, setChoice] = useState<string | null>(selected);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
+  if (preview && reviewing) {
+    return (
+      <CabinetReview
+        selections={localSelections}
+        candidates={candidates}
+        preview
+        onEdit={() => {
+          setReviewing(false);
+          setLocalStep(0);
+          setChoice(null);
+        }}
+      />
+    );
+  }
+
   async function next() {
     if (!choice) {
       setError("Select one option to continue. Your vote is not submitted yet.");
+      return;
+    }
+    if (preview) {
+      const nextSelections = { ...localSelections, [contest.id]: choice };
+      setLocalSelections(nextSelections);
+      setError(null);
+      if (activeStep >= 5) {
+        setReviewing(true);
+        return;
+      }
+      setLocalStep(activeStep + 1);
+      setChoice(null);
       return;
     }
     setPending(true);
@@ -46,7 +80,7 @@ export function CabinetBallot({
   return (
     <div>
       <p className="text-center text-xs tracking-[0.2em] text-navy/35 uppercase">
-        Step {step + 1} of 6
+        Step {activeStep + 1} of 6
       </p>
       <h2 className="mt-2 text-center font-serif text-3xl text-navy">{contest.title}</h2>
       <p className="mt-1 text-center text-sm text-navy/55">{contest.instruction}</p>
@@ -83,11 +117,18 @@ export function CabinetBallot({
       {error ? <p className="mt-4 text-center text-sm text-red-700">{error}</p> : null}
 
       <div className="mt-8 flex gap-3">
-        {step > 0 ? (
+        {activeStep > 0 ? (
           <button
             type="button"
             className="flex-1 rounded-2xl bg-white py-4 text-sm font-semibold ring-1 ring-black/10"
             onClick={async () => {
+              if (preview) {
+                const previous = activeStep - 1;
+                setLocalStep(previous);
+                setChoice(localSelections[CABINET_CONTESTS[previous].id] ?? null);
+                setError(null);
+                return;
+              }
               await goToCabinetStep(step - 1);
               router.refresh();
             }}
@@ -101,7 +142,7 @@ export function CabinetBallot({
           onClick={() => void next()}
           className="flex-[2] rounded-2xl bg-navy py-4 text-sm font-bold tracking-[0.16em] text-white uppercase"
         >
-          {step >= 5 ? "Review" : "Next"}
+          {activeStep >= 5 ? "Review" : "Next"}
         </button>
       </div>
       <p className="mt-4 text-center text-xs text-navy/40">
@@ -202,9 +243,13 @@ function TicketCard({
 export function CabinetReview({
   selections,
   candidates,
+  preview = false,
+  onEdit,
 }: {
   selections: Partial<Record<CabinetContestId, string>>;
   candidates: CabinetCandidate[];
+  preview?: boolean;
+  onEdit?: () => void;
 }) {
   const router = useRouter();
   const [confirm, setConfirm] = useState(false);
@@ -239,6 +284,10 @@ export function CabinetReview({
           type="button"
           className="rounded-2xl bg-white py-4 text-sm font-semibold ring-1 ring-black/10"
           onClick={async () => {
+            if (preview) {
+              onEdit?.();
+              return;
+            }
             await goToCabinetStep(0);
             router.push("/vote/ballot");
           }}
@@ -257,7 +306,11 @@ export function CabinetReview({
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
           <div className="w-full max-w-md rounded-[28px] bg-white p-6 text-center">
             <p className="font-serif text-2xl">Are you sure you want to submit your vote?</p>
-            <p className="mt-2 text-sm text-navy/60">Once submitted, your vote cannot be changed.</p>
+            <p className="mt-2 text-sm text-navy/60">
+              {preview
+                ? "This is a preview. Confirming does not store a vote."
+                : "Once submitted, your vote cannot be changed."}
+            </p>
             <div className="mt-6 flex gap-3">
               <button type="button" className="flex-1 rounded-2xl bg-[#f3f3f4] py-3" onClick={() => setConfirm(false)}>
                 Cancel
@@ -266,6 +319,11 @@ export function CabinetReview({
                 type="button"
                 className="flex-1 rounded-2xl bg-navy py-3 font-bold text-white"
                 onClick={async () => {
+                  if (preview) {
+                    setError("Preview only. No elector vote was stored.");
+                    setConfirm(false);
+                    return;
+                  }
                   const result = await submitCabinetVote();
                   if (!result.ok) {
                     setError(result.error);

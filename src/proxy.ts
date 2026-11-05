@@ -7,6 +7,12 @@ import {
 } from "@/lib/session-crypto";
 
 export async function proxy(request: NextRequest) {
+  // Server Actions POST to the page URL. A redirect here comes back as HTML,
+  // and the client reports "Failed to fetch" or an unexpected response.
+  if (request.headers.has("next-action")) {
+    return NextResponse.next();
+  }
+
   const { pathname } = request.nextUrl;
   const token = request.cookies.get(SESSION_COOKIE)?.value;
   const decrypted = token ? await decryptPayload(token) : null;

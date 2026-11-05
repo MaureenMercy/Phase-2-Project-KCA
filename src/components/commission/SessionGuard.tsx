@@ -1,19 +1,18 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import { logoutAction, reauthenticate } from "@/lib/actions/auth";
-import { SESSION_IDLE_MS } from "@/lib/session-crypto";
+import { SESSION_IDLE_MS } from "@/lib/session-limits";
 
 const WARN_MS = 2 * 60 * 1000;
 
 export function SessionGuard() {
-  const router = useRouter();
   const [remaining, setRemaining] = useState<number | null>(null);
 
   useEffect(() => {
     let last = Date.now();
     let lastPing = 0;
+    let stopped = false;
 
     function bump() {
       last = Date.now();
@@ -22,29 +21,51 @@ export function SessionGuard() {
 
     const events = ["click", "keydown", "mousemove", "scroll", "touchstart"];
     events.forEach((event) => window.addEventListener(event, bump));
-    void fetch("/api/session/ping", { method: "POST" });
+
+    async function leave() {
+      if (stopped) return;
+      stopped = true;
+      window.clearInterval(timer);
+      events.forEach((event) => window.removeEventListener(event, bump));
+      try {
+        await logoutAction();
+      } catch {
+        // A second tab may already have ended the session.
+      }
+      window.location.assign("/commission/login?reason=timeout");
+    }
+
+    void fetch("/api/session/ping", { method: "POST" }).then((response) => {
+      if (response.status === 401) void leave();
+    });
     lastPing = Date.now();
 
     const timer = window.setInterval(async () => {
+      if (stopped) return;
       const idle = Date.now() - last;
       const left = SESSION_IDLE_MS - idle;
       if (left <= 0) {
-        await logoutAction();
-        router.push("/commission/login?reason=timeout");
+        await leave();
         return;
       }
       if (left <= WARN_MS) setRemaining(Math.ceil(left / 1000));
       if (Date.now() - lastPing > 60_000 && idle < SESSION_IDLE_MS) {
         lastPing = Date.now();
-        void fetch("/api/session/ping", { method: "POST" });
+        try {
+          const response = await fetch("/api/session/ping", { method: "POST" });
+          if (response.status === 401) await leave();
+        } catch {
+          // A missed ping does not end the session. The idle timer still does.
+        }
       }
     }, 1000);
 
     return () => {
+      stopped = true;
       events.forEach((event) => window.removeEventListener(event, bump));
       window.clearInterval(timer);
     };
-  }, [router]);
+  }, []);
 
   if (remaining === null) return null;
 

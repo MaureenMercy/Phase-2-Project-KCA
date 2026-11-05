@@ -1,18 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { useMemo, useState } from "react";
 import { BrandMark } from "@/components/brand/BrandLogo";
 import { KcaWatermark } from "@/components/brand/KcaWatermark";
 import { logoutAction, logoutAndForgetDevice } from "@/lib/actions/auth";
-import { navForPermissions } from "@/lib/nav";
+import type { NavItem } from "@/lib/nav";
 import { CONTEST_LABELS, ROLE_LABELS, STAGE_LABELS } from "@/lib/permissions";
 import type {
   CommissionRole,
   ElectionContest,
   ElectionStage,
-  ElectoralPermission,
   NotificationItem,
 } from "@/lib/types";
 import { initials } from "@/lib/format";
@@ -31,7 +30,7 @@ export function CommissionShell({
   stage,
   contest,
   emergencyPaused,
-  permissions,
+  items,
   notifications,
   children,
 }: {
@@ -40,14 +39,13 @@ export function CommissionShell({
   stage: ElectionStage;
   contest: ElectionContest;
   emergencyPaused: boolean;
-  permissions: ElectoralPermission[];
+  items: NavItem[];
   notifications: NotificationItem[];
   children: React.ReactNode;
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [mobileOpen, setMobileOpen] = useState(false);
   const pathname = usePathname();
-  const items = navForPermissions(permissions);
 
   return (
     <div className="min-h-screen bg-cream text-ink">
@@ -150,7 +148,7 @@ function Sidebar({
   mobileOpen: boolean;
   onClose: () => void;
   pathname: string;
-  items: ReturnType<typeof navForPermissions>;
+  items: NavItem[];
 }) {
   const standard = items.filter((item) => item.kind !== "restricted");
   const restricted = items.filter((item) => item.kind === "restricted");
@@ -180,6 +178,7 @@ function Sidebar({
               <Link
                 key={item.href}
                 href={item.href}
+                prefetch={process.env.NODE_ENV === "production"}
                 onClick={onClose}
                 className={[
                   "mb-1 flex items-start gap-3 rounded-xl px-3 py-2.5",
@@ -204,6 +203,7 @@ function Sidebar({
               <Link
                 key={item.href}
                 href={item.href}
+                prefetch={process.env.NODE_ENV === "production"}
                 onClick={onClose}
                 className={[
                   "mt-6 flex items-start gap-3 rounded-xl border px-3 py-2.5",
@@ -229,7 +229,6 @@ function Sidebar({
 }
 
 function UserMenu({ user }: { user: ShellUser }) {
-  const router = useRouter();
   const [open, setOpen] = useState(false);
   const letter = useMemo(() => initials(user.fullName), [user.fullName]);
 
@@ -268,8 +267,12 @@ function UserMenu({ user }: { user: ShellUser }) {
               type="button"
               className="rounded-sm border border-navy/15 px-3 py-2 text-sm"
               onClick={async () => {
-                await logoutAction();
-                router.push("/commission/login");
+                try {
+                  await logoutAction();
+                } catch {
+                  // The page is leaving either way.
+                }
+                window.location.assign("/commission/login");
               }}
             >
               Sign out
@@ -278,8 +281,12 @@ function UserMenu({ user }: { user: ShellUser }) {
               type="button"
               className="rounded-sm px-3 py-2 text-sm text-navy/60"
               onClick={async () => {
-                await logoutAndForgetDevice();
-                router.push("/commission/login");
+                try {
+                  await logoutAndForgetDevice();
+                } catch {
+                  // The page is leaving either way.
+                }
+                window.location.assign("/commission/login");
               }}
             >
               Sign out and forget this workstation
@@ -319,7 +326,11 @@ function NotificationBell({ notifications }: { notifications: NotificationItem[]
             ) : (
               notifications.map((item) => (
                 <li key={item.id} className="border-b border-navy/5 px-4 py-3">
-                  <Link href={item.href} className="block hover:text-navy">
+                  <Link
+                    href={item.href}
+                    prefetch={process.env.NODE_ENV === "production"}
+                    className="block hover:text-navy"
+                  >
                     <span className="text-sm font-semibold text-navy">{item.title}</span>
                     <span className="mt-1 block text-xs leading-5 text-navy/60">
                       {item.body}
