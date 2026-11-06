@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { AddLeadershipCandidateForm } from "@/components/commission/AddLeadershipCandidateForm";
 import { CandidatePhotoUpload } from "@/components/commission/CandidatePhotoUpload";
 import { ModuleSubnav, PageHeader, StatusPill } from "@/components/commission/PageHeader";
 import { CABINET_CONTESTS } from "@/lib/electoral";
@@ -52,6 +53,17 @@ export default async function LeadershipPage() {
           </Link>
         )}
       </section>
+
+      <AddLeadershipCandidateForm
+        contests={CABINET_CONTESTS.map((contest) => ({
+          id: contest.id,
+          title: contest.title,
+          kind: contest.kind,
+        }))}
+        campuses={store.campuses.filter((campus) => campus.status === "active").map((campus) => campus.name)}
+        canAdd={canPlace}
+        disabledReason="Adding leadership candidates is a Commission nomination power at this election stage."
+      />
 
       <section className="space-y-4">
         {CABINET_CONTESTS.map((contest) => (

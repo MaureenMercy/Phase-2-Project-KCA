@@ -25,6 +25,7 @@ import {
   saveTrustedDevice,
 } from "@/lib/session";
 import { isReauthFresh } from "@/lib/session-crypto";
+import { toCabinetCandidate, upsertCabinetCandidate } from "@/lib/candidate-map";
 import { appendAudit, readStore, writeStore } from "@/lib/store";
 import type { ElectoralPermission, SessionPayload } from "@/lib/types";
 import { assertSystemAccess } from "@/lib/ops-guard";
@@ -347,6 +348,14 @@ export async function decideCandidate(
           }
         : candidate,
     );
+    const decided = store.candidates.find((candidate) => candidate.id === candidateId);
+    if (decided && decision === "approved") {
+      const cabinet = toCabinetCandidate(decided);
+      if (cabinet) store.cabinetCandidates = upsertCabinetCandidate(store.cabinetCandidates, cabinet);
+    }
+    if (decision === "rejected") {
+      store.cabinetCandidates = store.cabinetCandidates.filter((item) => item.id !== `cab-from-${candidateId}`);
+    }
     return store;
   });
 
@@ -358,6 +367,7 @@ export async function decideCandidate(
     highRisk: false,
   });
   revalidatePath("/commission/candidates");
+  revalidatePath("/commission/election/leadership");
   revalidatePath("/commission/dashboard");
   return { ok: true };
 }

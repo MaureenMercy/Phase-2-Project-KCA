@@ -1,4 +1,5 @@
 import { ActionButton } from "@/components/commission/ActionButton";
+import { AddDelegateCandidateForm } from "@/components/commission/AddDelegateCandidateForm";
 import { CampusSeatForm } from "@/components/commission/CampusSeatForm";
 import { CandidatePhotoUpload } from "@/components/commission/CandidatePhotoUpload";
 import { SeatConfigForm } from "@/components/commission/SeatConfigForm";
@@ -9,6 +10,7 @@ import {
   generateElectoralCollege,
   verifyElectoralCollege,
 } from "@/lib/actions/election";
+import { courseOptions } from "@/lib/courses";
 import { candidatesForUnit, resolveUnits, unitLabel } from "@/lib/electoral";
 import { formatNumber } from "@/lib/format";
 import { overlayCandidatePhotos, overlayPersistedVotes } from "@/lib/ops-overlay";
@@ -50,6 +52,7 @@ export default async function Election1Page({
   const canSeats = isAllowedNow(session.role!, "configure_delegate_seats", store.election.stage);
   const canTally = isAllowedNow(session.role!, "configure_election", store.election.stage);
   const canRegister = isAllowedNow(session.role!, "approve_voter_register", store.election.stage);
+  const canAddCandidates = isAllowedNow(session.role!, "approve_candidates", store.election.stage);
 
   return (
     <div className="space-y-6">
@@ -177,6 +180,13 @@ export default async function Election1Page({
 
       {tab === "candidates" || tab === "ballot" ? (
         <div className="space-y-4">
+          {tab === "candidates" ? (
+            <AddDelegateCandidateForm
+              courses={courseOptions()}
+              canAdd={canAddCandidates}
+              disabledReason="Adding delegate candidates is a Commission nomination power at this election stage."
+            />
+          ) : null}
           {units.map((unit) => {
             const candidates = candidatesForUnit(store, unit);
             if (tab === "ballot" && candidates.length === 0) return null;

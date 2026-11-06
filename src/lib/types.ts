@@ -157,6 +157,8 @@ export type CandidateRecord = {
   ticket: string;
   position: string;
   campus: string;
+  contestId?: CabinetContestId;
+  runningMateName?: string;
   status: "pending" | "approved" | "rejected";
   photo?: string;
   reviewedBy?: string | null;
