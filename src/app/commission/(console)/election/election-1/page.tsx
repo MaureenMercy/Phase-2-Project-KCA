@@ -48,6 +48,7 @@ export default async function Election1Page({
   const campuses = store.campuses;
   const filtered = campusFilter === "all" ? units : units.filter((unit) => unit.campusId === campusFilter);
   const canSeats = isAllowedNow(session.role!, "configure_delegate_seats", store.election.stage);
+  const canTally = isAllowedNow(session.role!, "configure_election", store.election.stage);
   const canRegister = isAllowedNow(session.role!, "approve_voter_register", store.election.stage);
 
   return (
@@ -225,8 +226,8 @@ export default async function Election1Page({
       {tab === "results" ? (
         <section className="space-y-4">
           <div className="flex flex-wrap gap-3">
-            <ActionButton label="Apply demonstration tallies" run={applyDemonstrationTallies} disabled={!canSeats} disabledReason="Configuration permission required." />
-            <ActionButton label="Finalize elected delegates" tone="navy" run={finalizeElection1Results} disabled={!canSeats} disabledReason="Finalizing Election 1 is a Commission configuration action after seats exist." />
+            <ActionButton label="Apply demonstration tallies" run={applyDemonstrationTallies} disabled={!canTally} disabledReason="Applying tallies is a Commission configuration action after seats exist." />
+            <ActionButton label="Finalize elected delegates" tone="navy" run={finalizeElection1Results} disabled={!canTally} disabledReason="Finalizing Election 1 is a Commission configuration action after seats exist." />
           </div>
           <ul className="divide-y divide-navy/10 rounded-2xl border border-navy/10 bg-white/90">
             {store.delegateCandidates
@@ -239,6 +240,25 @@ export default async function Election1Page({
                 </li>
               ))}
           </ul>
+          <section className="rounded-2xl border border-navy/10 bg-white/90 p-5">
+            <h3 className="font-serif text-xl text-navy">Stored ballots</h3>
+            <p className="mt-1 text-sm text-navy/60">
+              {store.delegateVotes.length} Election 1 ballot{store.delegateVotes.length === 1 ? "" : "s"} stored.
+              Preview desks do not add to this list.
+            </p>
+            {store.delegateVotes.length ? (
+              <ul className="mt-3 divide-y divide-navy/10 text-sm">
+                {store.studentElectors
+                  .filter((student) => student.voterStatus === "voted")
+                  .map((student) => (
+                    <li key={student.studentId} className="flex justify-between py-2">
+                      <span>{student.fullName}</span>
+                      <span className="font-mono text-navy/70">{student.studentId}</span>
+                    </li>
+                  ))}
+              </ul>
+            ) : null}
+          </section>
           {store.electedDelegates.length === 0 ? (
             <p className="text-sm text-navy/60">No elected delegates yet. After tallies, finalize to identify winners by configured seats.</p>
           ) : (

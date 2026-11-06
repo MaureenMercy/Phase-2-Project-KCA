@@ -32,11 +32,12 @@ export default async function DatabasePage() {
         </p>
       ) : (
         <>
-          <section className="grid gap-4 md:grid-cols-4">
+          <section className="grid gap-4 md:grid-cols-5">
             <StatCard label="Engine" value="Mongo" hint={summary.storage} />
             <StatCard label="Commission accounts" value={formatNumber(summary.counts.commissionAccounts)} hint={`${summary.counts.memberships} memberships`} />
             <StatCard label="Student electors" value={formatNumber(summary.counts.studentElectors)} hint={summary.voterRegister ? `Register ${summary.voterRegister.version} · ${summary.voterRegister.status}` : "Voter register"} />
             <StatCard label="Stored ballots" value={formatNumber(summary.counts.storedBallots)} hint={`${summary.counts.delegateVotes} Election 1 · ${summary.counts.cabinetVotes} cabinet in the registry`} />
+            <StatCard label="Operator roll" value={formatNumber(summary.counts.enrolledStudents ?? summary.enrolled?.length ?? 0)} hint="Hidden student registration stored in MongoDB" />
           </section>
 
           <p className="text-sm text-navy/60">
@@ -74,6 +75,32 @@ export default async function DatabasePage() {
               </tbody>
             </table>
           </section>
+
+          {(summary.enrolled ?? []).length ? (
+            <section className="overflow-hidden rounded-2xl border border-navy/10 bg-white/90">
+              <h2 className="border-b border-navy/10 px-5 py-4 font-serif text-2xl text-navy">
+                Operator-enrolled students ({summary.counts.enrolledStudents ?? summary.enrolled.length})
+              </h2>
+              <table className="w-full text-left text-sm">
+                <thead className="text-[11px] tracking-[0.14em] text-navy/45 uppercase">
+                  <tr>
+                    <th className="px-5 py-2 font-semibold">Admission</th>
+                    <th className="px-5 py-2 font-semibold">Name</th>
+                    <th className="px-5 py-2 font-semibold">Course</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {summary.enrolled.map((student) => (
+                    <tr key={student.studentId} className="border-t border-navy/10">
+                      <td className="px-5 py-3 font-semibold text-navy">{student.studentId}</td>
+                      <td className="px-5 py-3">{student.fullName}</td>
+                      <td className="px-5 py-3">{student.courseLabel}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </section>
+          ) : null}
 
           <section className="overflow-hidden rounded-2xl border border-navy/10 bg-white/90">
             <h2 className="border-b border-navy/10 px-5 py-4 font-serif text-2xl text-navy">Student electors and voters</h2>

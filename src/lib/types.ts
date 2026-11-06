@@ -283,7 +283,8 @@ export type StudentElector = {
   departmentId: string | null;
   programId: string | null;
   eligibilityStatus: "eligible" | "ineligible" | "pending";
-  eligibilitySource: "mock_first_year_register";
+  eligibilitySource: "mock_first_year_register" | "operator_enrollment";
+  courseLabel?: string;
   voterStatus: "not_voted" | "voted";
   createdAt: string;
   updatedAt: string;

@@ -97,7 +97,7 @@ export function evaluateCommissionAccess(
           "Identify commission member",
           "fail",
           user.accountKind === "technical"
-            ? "This Work ID belongs to technical staff. ICT functions are not election-operational accounts and cannot enter the Commission portal."
+            ? "ICT is not an election account. This Work ID cannot enter the Commission portal."
             : "No Electoral Commission membership is attached to this institutional account.",
         ),
   );
@@ -108,7 +108,7 @@ export function evaluateCommissionAccess(
       steps,
       reason:
         user.accountKind === "technical"
-          ? "Technical administration is not granted through the Electoral Commission portal."
+          ? "ICT is not an election account."
           : "This account is not an Electoral Commission member.",
       failedStep: "identify",
     };

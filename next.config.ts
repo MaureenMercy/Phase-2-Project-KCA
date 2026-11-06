@@ -15,6 +15,7 @@ const nextConfig: NextConfig = {
     maxInactiveAge: 60 * 60 * 1000,
     pagesBufferLength: 50,
   },
+  allowedDevOrigins: ["127.0.0.1"],
   turbopack: {
     // Keep Turbopack inside this app so it does not walk into backend/ or the parent folder.
     root,

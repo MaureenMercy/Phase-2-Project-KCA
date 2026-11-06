@@ -35,7 +35,7 @@ export function StudentLogin({ preview = false }: { preview?: boolean }) {
         <input name="studentId" placeholder="24/01311" className="mt-2 w-full rounded-2xl bg-[#f3f3f4] px-4 py-3" />
       </label>
       <label className="block">
-        <span className="text-[11px] tracking-[0.16em] text-navy/40 uppercase">Demonstration PIN</span>
+        <span className="text-[11px] tracking-[0.16em] text-navy/40 uppercase">PIN</span>
         <input name="pin" type="password" defaultValue="SAKU2026" className="mt-2 w-full rounded-2xl bg-[#f3f3f4] px-4 py-3" />
       </label>
       {error ? <p className="text-sm text-red-700">{error}</p> : null}

@@ -10,7 +10,7 @@ import {
 } from "@/lib/actions/auth";
 import { resolveUnits, validateElection1Readiness } from "@/lib/electoral";
 import { formatDateTime, formatNumber } from "@/lib/format";
-import { CONTEST_LABELS, isAllowedNow, ROLE_LABELS, STAGE_LABELS } from "@/lib/permissions";
+import { CONTEST_LABELS, isAllowedNow, ROLE_LABELS, STAGE_LABELS, roleHasPermission } from "@/lib/permissions";
 import { overlayPersistedVotes } from "@/lib/ops-overlay";
 import { requireAuthorizedSession } from "@/lib/session";
 import { readStore } from "@/lib/store";
@@ -124,33 +124,39 @@ export default async function DashboardPage() {
           deployments.
         </p>
         <div className="mt-5 flex flex-wrap gap-4">
-          <ActionButton
-            label="Authorize opening"
-            run={authorizeElectionOpening}
-            disabled={!isAllowedNow(role, "authorize_election_opening", store.election.stage)}
-            disabledReason={
-              role === "CHAIR" || role === "VICE_CHAIR"
-                ? "Opening can only be authorized during the registration period."
-                : "Final opening authorization is reserved to the Chair and Vice Chair."
-            }
-          />
-          <ActionButton
-            label="Authorize closing"
-            tone="navy"
-            run={authorizeElectionClosing}
-            disabled={!isAllowedNow(role, "authorize_election_closing", store.election.stage)}
-            disabledReason="Closing can only be authorized while voting is in progress, by the Chair or Vice Chair."
-          />
-          <ActionButton
-            label="Authorize official results"
-            run={authorizeResults}
-            disabled={!isAllowedNow(role, "authorize_results", store.election.stage)}
-            disabledReason={
-              role === "CHAIR"
-                ? "Results can be authorized only after voting has closed."
-                : "The Chair holds special results privileges. Other members cannot authorize official results."
-            }
-          />
+          {roleHasPermission(role, "authorize_election_opening") ? (
+            <ActionButton
+              label="Authorize opening"
+              run={authorizeElectionOpening}
+              disabled={!isAllowedNow(role, "authorize_election_opening", store.election.stage)}
+              disabledReason="Opening can only be authorized during the registration period."
+            />
+          ) : (
+            <p className="max-w-xs text-xs leading-5 text-navy/50">
+              Authorize opening is not available for this role. Only the Chair and Vice Chair can open voting.
+            </p>
+          )}
+          {roleHasPermission(role, "authorize_election_closing") ? (
+            <ActionButton
+              label="Authorize closing"
+              tone="navy"
+              run={authorizeElectionClosing}
+              disabled={!isAllowedNow(role, "authorize_election_closing", store.election.stage)}
+              disabledReason="Closing can only be authorized while voting is in progress, by the Chair or Vice Chair."
+            />
+          ) : null}
+          {roleHasPermission(role, "authorize_results") ? (
+            <ActionButton
+              label="Authorize official results"
+              run={authorizeResults}
+              disabled={!isAllowedNow(role, "authorize_results", store.election.stage)}
+              disabledReason="Results can be authorized only after voting has closed."
+            />
+          ) : (
+            <p className="max-w-xs text-xs leading-5 text-navy/50">
+              The Chair holds special results privileges. Other members cannot authorize official results.
+            </p>
+          )}
         </div>
         <dl className="mt-6 grid gap-3 text-sm text-navy/60 md:grid-cols-3">
           <div>

@@ -113,6 +113,21 @@ const RegistrySchema = new Schema(
   { versionKey: false },
 );
 
+const EnrolledStudentSchema = new Schema(
+  {
+    studentId: { type: String, required: true, unique: true },
+    studentIdKey: { type: String, required: true, unique: true },
+    fullName: { type: String, required: true },
+    campusId: { type: String, required: true },
+    schoolId: { type: String, required: true },
+    departmentId: { type: String, default: null },
+    courseLabel: { type: String, required: true },
+    passwordHash: { type: String, required: true },
+    enrolledAt: { type: String, required: true },
+  },
+  { versionKey: false },
+);
+
 export const VoteModel = mongoose.models.Vote || mongoose.model("Vote", VoteSchema);
 export const EventModel = mongoose.models.AccessEvent || mongoose.model("AccessEvent", EventSchema);
 export const PolicyModel = mongoose.models.AccessPolicy || mongoose.model("AccessPolicy", PolicySchema);
@@ -122,3 +137,5 @@ export const MembershipModel = mongoose.models.CommissionMembership || mongoose.
 export const OtpModel = mongoose.models.AuthOtp || mongoose.model("AuthOtp", OtpSchema);
 export const AttemptModel = mongoose.models.LoginAttempt || mongoose.model("LoginAttempt", AttemptSchema);
 export const RegistryModel = mongoose.models.ElectionRegistry || mongoose.model("ElectionRegistry", RegistrySchema);
+export const EnrolledStudentModel =
+  mongoose.models.EnrolledStudent || mongoose.model("EnrolledStudent", EnrolledStudentSchema);

@@ -68,6 +68,16 @@ describe("election stage gates", () => {
     expect(voting).toContain("authorize_election_closing");
     expect(voting).not.toContain("authorize_results");
   });
+
+  it("lets the Chair apply Election 1 tallies and activate the college after opening", () => {
+    expect(isAllowedNow("CHAIR", "configure_election", "VOTING")).toBe(true);
+    expect(isAllowedNow("CHAIR", "approve_voter_register", "VOTING")).toBe(true);
+    expect(isAllowedNow("VICE_CHAIR", "configure_election", "VOTING")).toBe(true);
+    expect(isAllowedNow("CHAIR", "configure_delegate_seats", "VOTING")).toBe(false);
+    expect(isAllowedNow("COMMISSIONER", "configure_election", "VOTING")).toBe(false);
+    expect(isAllowedNow("COMMISSIONER", "authorize_election_opening", "REGISTRATION")).toBe(false);
+    expect(isAllowedNow("SECRETARY_GENERAL", "authorize_election_opening", "REGISTRATION")).toBe(false);
+  });
 });
 
 describe("authorization pipeline", () => {
@@ -107,7 +117,7 @@ describe("authorization pipeline", () => {
     expect(decision.granted).toBe(false);
     if (!decision.granted) {
       expect(decision.failedStep).toBe("identify");
-      expect(decision.reason).toMatch(/Technical administration/i);
+      expect(decision.reason).toMatch(/ICT is not an election account/i);
     }
   });
 

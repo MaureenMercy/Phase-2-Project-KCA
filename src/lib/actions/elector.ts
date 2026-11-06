@@ -5,12 +5,11 @@ import { generateElection1Ballot, unitForStudent } from "@/lib/electoral";
 import { clearElectorSession, saveElectorSession } from "@/lib/elector-session";
 import { appendAudit, readStore, writeStore } from "@/lib/store";
 import type { ActionResult } from "@/lib/actions/auth";
-import { opsRecordVote } from "@/lib/ops-client";
+import { opsFindEnrolled, opsRecordVote } from "@/lib/ops-client";
 import { assertVotingAccess } from "@/lib/ops-guard";
 import { overlayPersistedVotes } from "@/lib/ops-overlay";
 import { readRequestMeta } from "@/lib/request-meta";
-
-const STUDENT_PIN = "SAKU2026";
+import { normalizeStudentId, pinMatchesStudent } from "@/lib/student-auth";
 
 export async function studentElectorLogin(input: {
   studentId: string;
@@ -32,10 +31,15 @@ export async function studentElectorLogin(input: {
   }
 
   const student = store.studentElectors.find(
-    (item) => item.studentId.trim().toUpperCase() === input.studentId.trim().toUpperCase(),
+    (item) => normalizeStudentId(item.studentId) === normalizeStudentId(input.studentId),
   );
-  if (!student || input.pin !== STUDENT_PIN) {
-    return { ok: false, error: "Student ID or demonstration PIN is incorrect." };
+  const enrolled = await opsFindEnrolled(input.studentId);
+  const pinOk = await pinMatchesStudent({
+    pin: input.pin,
+    enrolledPasswordHash: enrolled?.passwordHash ?? null,
+  });
+  if (!student || !pinOk) {
+    return { ok: false, error: "Student ID or PIN is incorrect." };
   }
   if (student.eligibilityStatus !== "eligible") {
     return { ok: false, error: "This student is not eligible for Election 1." };

@@ -248,6 +248,7 @@ export type RecordsSummary = {
     portraits: number;
     otpChallenges: number;
     auditEntries: number;
+    enrolledStudents: number;
   };
   voterRegister: { version?: string; status?: string; voterCount?: number } | null;
   accounts: Array<{
@@ -275,10 +276,57 @@ export type RecordsSummary = {
     path: string;
     allowed: boolean;
   }>;
+  enrolled: Array<{
+    studentId: string;
+    fullName: string;
+    campusId: string;
+    schoolId: string;
+    departmentId: string | null;
+    courseLabel: string;
+    enrolledAt: string;
+  }>;
 };
 
 export async function opsRecordsSummary() {
   return opsFetch<RecordsSummary>("/records/summary");
+}
+
+export type EnrolledStudentRecord = {
+  studentId: string;
+  fullName: string;
+  campusId: string;
+  schoolId: string;
+  departmentId: string | null;
+  courseLabel: string;
+  enrolledAt: string;
+  passwordHash?: string;
+};
+
+export async function opsListEnrolled() {
+  return (await opsFetch<EnrolledStudentRecord[]>("/enrolled")) ?? [];
+}
+
+export async function opsFindEnrolled(studentId: string) {
+  return opsFetch<EnrolledStudentRecord>(`/enrolled/${encodeURIComponent(studentId)}`);
+}
+
+export async function opsSaveEnrolled(input: {
+  studentId: string;
+  fullName: string;
+  campusId: string;
+  schoolId: string;
+  departmentId: string | null;
+  courseLabel: string;
+  passwordHash: string;
+}) {
+  return opsFetch<EnrolledStudentRecord>(`/enrolled/${encodeURIComponent(input.studentId)}`, {
+    method: "PUT",
+    body: JSON.stringify(input),
+  });
+}
+
+export async function opsDemoReset() {
+  return opsFetch<{ ok: boolean }>("/demo/reset", { method: "POST", body: "{}" });
 }
 
 export function opsPhotoUrl(candidateId: string) {

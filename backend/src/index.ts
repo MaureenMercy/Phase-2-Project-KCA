@@ -13,6 +13,7 @@ import {
   OtpModel,
   PhotoModel,
   PolicyModel,
+  EnrolledStudentModel,
   RegistryModel,
   VoteModel,
 } from "./models";
@@ -419,8 +420,94 @@ app.put("/registry", async (req, res) => {
   return res.json({ ok: true, updatedAt });
 });
 
+function studentIdKey(value: string) {
+  return String(value ?? "").trim().toUpperCase();
+}
+
+function publicEnrolled(row: {
+  studentId: string;
+  fullName: string;
+  campusId: string;
+  schoolId: string;
+  departmentId?: string | null;
+  courseLabel: string;
+  enrolledAt: string;
+  passwordHash?: string;
+}) {
+  return {
+    studentId: row.studentId,
+    fullName: row.fullName,
+    campusId: row.campusId,
+    schoolId: row.schoolId,
+    departmentId: row.departmentId ?? null,
+    courseLabel: row.courseLabel,
+    enrolledAt: row.enrolledAt,
+  };
+}
+
+app.get("/enrolled", async (_req, res) => {
+  const rows = await EnrolledStudentModel.find({}, { passwordHash: 0 }).sort({ enrolledAt: -1 }).lean();
+  res.json(rows.map(publicEnrolled));
+});
+
+app.get("/enrolled/:studentId", async (req, res) => {
+  const key = studentIdKey(req.params.studentId);
+  const row = await EnrolledStudentModel.findOne({ studentIdKey: key }).lean();
+  if (!row) return res.status(404).json({ error: "That admission number is not on the operator roll." });
+  return res.json({
+    ...publicEnrolled(row),
+    passwordHash: row.passwordHash,
+  });
+});
+
+app.put("/enrolled/:studentId", async (req, res) => {
+  const studentId = String(req.body.studentId ?? req.params.studentId ?? "").trim();
+  const key = studentIdKey(studentId);
+  const fullName = String(req.body.fullName ?? "").trim();
+  const campusId = String(req.body.campusId ?? "").trim();
+  const schoolId = String(req.body.schoolId ?? "").trim();
+  const departmentId = req.body.departmentId ? String(req.body.departmentId).trim() : null;
+  const courseLabel = String(req.body.courseLabel ?? "").trim();
+  const passwordHash = String(req.body.passwordHash ?? "").trim();
+  if (!key || !fullName || !campusId || !schoolId || !courseLabel || passwordHash.length < 20) {
+    return res.status(400).json({ error: "Name, admission, course, and password are required." });
+  }
+  const existing = await EnrolledStudentModel.findOne({ studentIdKey: key }).lean();
+  if (existing) {
+    return res.status(409).json({ error: "That admission number is already on the operator roll." });
+  }
+  const enrolledAt = new Date().toISOString();
+  const row = await EnrolledStudentModel.create({
+    studentId,
+    studentIdKey: key,
+    fullName,
+    campusId,
+    schoolId,
+    departmentId,
+    courseLabel,
+    passwordHash,
+    enrolledAt,
+  });
+  return res.json(publicEnrolled(row.toObject()));
+});
+
+app.post("/demo/reset", async (_req, res) => {
+  if (process.env.SAKU_DEMO !== "1") {
+    return res.status(404).json({ error: "Not found." });
+  }
+  await Promise.all([
+    VoteModel.deleteMany({}),
+    EventModel.deleteMany({}),
+    RegistryModel.deleteMany({}),
+    EnrolledStudentModel.deleteMany({}),
+    OtpModel.deleteMany({}),
+    AttemptModel.deleteMany({}),
+  ]);
+  return res.json({ ok: true });
+});
+
 app.get("/records/summary", async (_req, res) => {
-  const [accounts, members, registry, ballots, events, portraits, otpChallenges] = await Promise.all([
+  const [accounts, members, registry, ballots, events, portraits, otpChallenges, enrolled] = await Promise.all([
     DirectoryModel.find({}, { passwordHash: 0 }).lean(),
     MembershipModel.find().lean(),
     RegistryModel.findOne({ key: "app" }).lean(),
@@ -428,6 +515,7 @@ app.get("/records/summary", async (_req, res) => {
     EventModel.find().sort({ at: -1 }).limit(12).lean(),
     PhotoModel.countDocuments(),
     OtpModel.countDocuments(),
+    EnrolledStudentModel.find({}, { passwordHash: 0 }).sort({ enrolledAt: -1 }).lean(),
   ]);
   const payload = (registry?.payload ?? {}) as {
     studentElectors?: Array<{ studentId?: string; fullName?: string; voterStatus?: string; eligibilityStatus?: string }>;
@@ -456,6 +544,7 @@ app.get("/records/summary", async (_req, res) => {
       portraits,
       otpChallenges,
       auditEntries: payload.auditLog?.length ?? 0,
+      enrolledStudents: enrolled.length,
     },
     voterRegister: payload.voterRegister ?? null,
     accounts: accounts.map((account) => ({
@@ -471,6 +560,7 @@ app.get("/records/summary", async (_req, res) => {
       voterStatus: student.voterStatus ?? "",
       eligibilityStatus: student.eligibilityStatus ?? "",
     })),
+    enrolled: enrolled.map(publicEnrolled),
     college: college.slice(0, 20).map((entry) => ({
       registrationNumber: entry.registrationNumber ?? "",
       fullName: entry.fullName ?? "",

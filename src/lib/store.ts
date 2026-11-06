@@ -4,7 +4,8 @@ import { mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { cookies } from "next/headers";
 import { ensureDirectorySynced } from "@/lib/directory-db";
-import { opsLoadRegistry, opsSaveRegistry } from "@/lib/ops-client";
+import { mergeEnrolledIntoStore } from "@/lib/enrolled-students";
+import { opsListEnrolled, opsLoadRegistry, opsSaveRegistry } from "@/lib/ops-client";
 import { createInitialStore } from "@/lib/seed";
 import { cookieBaseOptions } from "@/lib/session-crypto";
 import {
@@ -124,18 +125,22 @@ async function readStoreFromCookies(): Promise<{ store: AppStore; at: number } |
   }
 }
 
+async function withEnrolledStudents(store: AppStore): Promise<AppStore> {
+  return mergeEnrolledIntoStore(store, await opsListEnrolled());
+}
+
 export async function readStore(): Promise<AppStore> {
   if (!canPersistToDisk()) {
     const fromCookies = await readStoreFromCookies();
     const memoryAt = globalStore.__sakuStoreAt ?? 0;
     const cookieAt = fromCookies?.at ?? 0;
     if (globalStore.__sakuStore && memoryAt >= cookieAt) {
-      return structuredClone(globalStore.__sakuStore);
+      return withEnrolledStudents(structuredClone(globalStore.__sakuStore));
     }
     if (fromCookies) {
       globalStore.__sakuStore = fromCookies.store;
       globalStore.__sakuStoreAt = fromCookies.at;
-      return structuredClone(fromCookies.store);
+      return withEnrolledStudents(structuredClone(fromCookies.store));
     }
   }
 
@@ -146,7 +151,7 @@ export async function readStore(): Promise<AppStore> {
   }
 
   await reconcileRegistry();
-  return structuredClone(globalStore.__sakuStore!);
+  return withEnrolledStudents(structuredClone(globalStore.__sakuStore!));
 }
 
 export async function writeStore(
