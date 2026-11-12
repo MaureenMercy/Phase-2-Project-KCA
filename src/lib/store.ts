@@ -34,13 +34,26 @@ const globalStore = globalThis as typeof globalThis & GlobalStore;
 
 function migrate(parsed: Partial<AppStore>): AppStore {
   const initial = createInitialStore();
-  if (parsed.version !== STORE_VERSION || !parsed.electoralUnits || !parsed.campuses) {
+  if (!parsed.electoralUnits || !parsed.campuses) {
     return {
       ...initial,
       auditLog: parsed.auditLog?.length ? parsed.auditLog : initial.auditLog,
     };
   }
-  return { ...initial, ...parsed, version: STORE_VERSION } as AppStore;
+  return {
+    ...initial,
+    ...parsed,
+    version: STORE_VERSION,
+    studentIdentities: parsed.studentIdentities?.length
+      ? parsed.studentIdentities
+      : initial.studentIdentities,
+    candidateProfiles: parsed.candidateProfiles ?? initial.candidateProfiles,
+    candidateApplications: parsed.candidateApplications ?? initial.candidateApplications,
+    agentNominations: parsed.agentNominations ?? initial.agentNominations,
+    correctionRequests: parsed.correctionRequests ?? initial.correctionRequests,
+    portalNotifications: parsed.portalNotifications ?? initial.portalNotifications,
+    portalConfig: parsed.portalConfig ?? initial.portalConfig,
+  } as AppStore;
 }
 
 function canPersistToDisk() {

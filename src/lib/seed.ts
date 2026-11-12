@@ -1,19 +1,32 @@
 import { portraitDataUri } from "@/lib/portraits";
+import {
+  encryptNationalId,
+  hashNationalId,
+  last4NationalId,
+  mockStudentNationalId,
+  mockStudentPhone,
+  programmeLabelFor,
+} from "@/lib/identity";
 import type {
   AppStore,
   AssignmentRecord,
   CabinetCandidate,
   Campus,
+  CandidateApplication,
+  CandidateProfile,
   CommissionMember,
   DelegateCandidate,
   ElectoralDepartment,
   ElectoralUnitConfiguration,
   InstitutionalUser,
   PollingStation,
+  PortalConfig,
+  PortalNotification,
   Programme,
   School,
   StudentElector,
   StudentElectoralMapping,
+  StudentIdentity,
 } from "@/lib/types";
 import { STORE_VERSION } from "@/lib/types";
 
@@ -335,6 +348,249 @@ export const STUDENT_MAPPINGS: StudentElectoralMapping[] = STUDENT_SEEDS.map((st
   }),
 );
 
+function programmeForSeed(student: StudentSeed) {
+  const department = DEPARTMENTS.find((item) => item.id === student.departmentId);
+  const school = SCHOOLS.find((item) => item.id === student.schoolId);
+  return programmeLabelFor({
+    departmentName: department?.name,
+    schoolName: school?.name,
+  });
+}
+
+export function buildStudentIdentity(student: StudentSeed & { recordSource?: StudentIdentity["recordSource"] }): StudentIdentity {
+  const nationalId = mockStudentNationalId(student.studentId);
+  return stamp({
+    id: `sid-${student.studentId.replace("/", "-")}`,
+    studentId: student.studentId,
+    fullName: student.fullName,
+    phoneNumber: mockStudentPhone(student.studentId),
+    campusId: student.campusId,
+    schoolId: student.schoolId,
+    departmentId: student.departmentId,
+    programId: null,
+    programmeLabel: programmeForSeed(student),
+    nationalIdHash: hashNationalId(nationalId),
+    nationalIdEncrypted: encryptNationalId(nationalId),
+    nationalIdLast4: last4NationalId(nationalId),
+    recordSource: student.recordSource ?? "mock_first_year_register",
+  });
+}
+
+export const STUDENT_IDENTITIES: StudentIdentity[] = STUDENT_SEEDS.map((student) =>
+  buildStudentIdentity(student),
+);
+
+export const DEFAULT_PORTAL_CONFIG: PortalConfig = {
+  identityDocumentTypes: [{ id: "national_id", label: "Kenyan National ID", enabled: true }],
+  alternativeIdPolicyStatus: "awaiting_commission",
+  applicationWindows: {
+    DELEGATE: {
+      status: "configured",
+      opensAt: "2026-09-01T00:00:00.000Z",
+      closesAt: "2026-12-31T23:59:59.000Z",
+    },
+    SAKU_COUNCIL: {
+      status: "configured",
+      opensAt: "2026-09-01T00:00:00.000Z",
+      closesAt: "2026-12-31T23:59:59.000Z",
+    },
+  },
+  jointTicketWorkflowStatus: "awaiting_commission",
+  maxAgentsPerCandidate: 2,
+  acceptedPhotoTypes: ["image/jpeg", "image/png"],
+  acceptedDocumentTypes: ["image/jpeg", "image/png", "application/pdf"],
+  maxPhotoBytes: 2 * 1024 * 1024,
+  maxDocumentBytes: 5 * 1024 * 1024,
+  councilPositions: [
+    {
+      id: "pos-special-interests",
+      contestId: "special-interests",
+      title: "Special Interests Secretary",
+      openForApplications: true,
+      jointTicket: false,
+      eligibilitySummary: [
+        "Must be a currently registered KCA University student.",
+        "Must meet the eligibility rules the Electoral Commission has configured for this position.",
+      ],
+      requiredDocuments: [{ id: "campaign-statement", label: "Campaign statement", required: true }],
+    },
+    {
+      id: "pos-sports",
+      contestId: "sports",
+      title: "Sports & Entertainment Secretary",
+      openForApplications: false,
+      jointTicket: false,
+      eligibilitySummary: [
+        "Must be a currently registered KCA University student.",
+        "Must meet the eligibility rules the Electoral Commission has configured for this position.",
+      ],
+      requiredDocuments: [{ id: "campaign-statement", label: "Campaign statement", required: true }],
+    },
+    {
+      id: "pos-academic",
+      contestId: "academic",
+      title: "Academic Secretary",
+      openForApplications: true,
+      jointTicket: false,
+      eligibilitySummary: [
+        "Must be a currently registered KCA University student.",
+        "Must meet the eligibility rules the Electoral Commission has configured for this position.",
+      ],
+      requiredDocuments: [{ id: "campaign-statement", label: "Campaign statement", required: true }],
+    },
+    {
+      id: "pos-treasurer",
+      contestId: "treasurer",
+      title: "Treasurer / Finance Secretary",
+      openForApplications: true,
+      jointTicket: false,
+      eligibilitySummary: [
+        "Must be a currently registered KCA University student.",
+        "Must meet the eligibility rules the Electoral Commission has configured for this position.",
+      ],
+      requiredDocuments: [{ id: "campaign-statement", label: "Campaign statement", required: true }],
+    },
+    {
+      id: "pos-secretary-general",
+      contestId: "secretary-general",
+      title: "Secretary General",
+      openForApplications: true,
+      jointTicket: false,
+      eligibilitySummary: [
+        "Must be a currently registered KCA University student.",
+        "Must meet the eligibility rules the Electoral Commission has configured for this position.",
+      ],
+      requiredDocuments: [{ id: "campaign-statement", label: "Campaign statement", required: true }],
+    },
+    {
+      id: "pos-president",
+      contestId: "president-ticket",
+      title: "President / Vice President",
+      openForApplications: true,
+      jointTicket: true,
+      eligibilitySummary: [
+        "This contest uses a joint ticket when the Electoral Commission has configured that workflow.",
+        "The joint-ticket registration process is not yet configured.",
+      ],
+      requiredDocuments: [{ id: "ticket-statement", label: "Joint ticket statement", required: true }],
+    },
+  ],
+  delegateRequiredDocuments: [
+    { id: "candidate-statement", label: "Candidate statement", required: true },
+  ],
+};
+
+const COLLINS = STUDENT_IDENTITIES.find((item) => item.studentId === "24/01511")!;
+
+export const SEEDED_CANDIDATE_PROFILES: CandidateProfile[] = [
+  stamp({
+    id: "cprof-collins",
+    studentId: COLLINS.studentId,
+  }),
+];
+
+const seededPhoto: CandidateApplication["photograph"] = {
+  id: "file-collins-photo",
+  kind: "photograph",
+  filename: "collins-portrait.jpg",
+  mimeType: "image/jpeg",
+  size: 1200,
+  dataUrl: portraitDataUri("Collins Mwenda Mutua", 40),
+  uploadedAt: now,
+};
+
+export const SEEDED_CANDIDATE_APPLICATIONS: CandidateApplication[] = [
+  {
+    id: "capp-collins-1",
+    reference: "CAN-2026-1001",
+    studentId: COLLINS.studentId,
+    candidateProfileId: "cprof-collins",
+    electionId: ELECTION_ID,
+    applicationType: "SAKU_COUNCIL",
+    status: "Approved",
+    currentStep: 5,
+    campusId: COLLINS.campusId,
+    schoolId: COLLINS.schoolId,
+    departmentId: COLLINS.departmentId,
+    programId: COLLINS.programId,
+    electoralCollege: {
+      kind: "DEPARTMENT",
+      campusId: COLLINS.campusId,
+      schoolId: COLLINS.schoolId,
+      departmentId: COLLINS.departmentId,
+      unitId: "unit-campus-ruaraka-school-ru-ptti-dept-ru-ptti-acad",
+      label: "Ruaraka · KCAU Professional and Technical Training Institute · Academic Programmes Department",
+      mappingStatus: "resolved",
+    },
+    councilPositionId: "pos-treasurer",
+    photograph: seededPhoto,
+    documents: [
+      {
+        id: "file-collins-statement",
+        kind: "campaign-statement",
+        filename: "campaign-statement.pdf",
+        mimeType: "application/pdf",
+        size: 24000,
+        dataUrl: "data:application/pdf;base64,JVBERi0xLjAK",
+        uploadedAt: now,
+      },
+    ],
+    declarations: {
+      informationAccurate: true,
+      understandNotApproval: true,
+      consentToProcessIdentity: true,
+      acceptCandidateDeclaration: true,
+    },
+    outstandingRequirements: [],
+    ballotParticipationStatus: "not_configured",
+    submittedAt: "2026-09-14T09:10:00.000Z",
+    decidedAt: "2026-09-16T11:00:00.000Z",
+    decidedBy: "Electoral Commission",
+    decisionNote: "Application approved. Ballot placement is a separate Commission configuration step.",
+    createdAt: "2026-09-14T08:40:00.000Z",
+    updatedAt: "2026-09-16T11:00:00.000Z",
+  },
+];
+
+export const SEEDED_PORTAL_NOTIFICATIONS: PortalNotification[] = [
+  {
+    id: "pn-collins-1",
+    studentId: COLLINS.studentId,
+    title: "Application approved",
+    body: "Your SAKU Council application CAN-2026-1001 is approved. This is not the same as being placed on a ballot.",
+    createdAt: "2026-09-16T11:02:00.000Z",
+    read: false,
+    href: "/candidate/applications",
+  },
+  {
+    id: "pn-collins-2",
+    studentId: COLLINS.studentId,
+    title: "Agent nomination is available",
+    body: "You may invite election agents. An invitation does not accredit the agent.",
+    createdAt: "2026-09-16T11:05:00.000Z",
+    read: false,
+    href: "/candidate/agents",
+  },
+];
+
+export const DEMO_CANDIDATE_ACCOUNTS = STUDENT_SEEDS.map((student) => ({
+  studentId: student.studentId,
+  fullName: student.fullName,
+  nationalId: mockStudentNationalId(student.studentId),
+  phone: mockStudentPhone(student.studentId),
+  campusId: student.campusId,
+  note:
+    student.studentId === "24/01511"
+      ? "Approved SAKU Council application — use to try agent nomination"
+      : student.studentId === "24/01212"
+        ? "Fresh Delegates Election application"
+        : student.studentId === "24/03201"
+          ? "Town campus-wide Electoral College"
+          : student.studentId === "24/02102"
+            ? "Western / Kisumu school grouping"
+            : null,
+}));
+
 const DELEGATE_SEEDS: { studentId: string; hue: number }[] = [
   { studentId: "24/01201", hue: 210 },
   { studentId: "24/01202", hue: 18 },
@@ -611,6 +867,13 @@ export function createInitialStore(): AppStore {
     emergencies: [],
     notices: [],
     disputes: [],
+    studentIdentities: STUDENT_IDENTITIES,
+    candidateProfiles: SEEDED_CANDIDATE_PROFILES,
+    candidateApplications: SEEDED_CANDIDATE_APPLICATIONS,
+    agentNominations: [],
+    correctionRequests: [],
+    portalNotifications: SEEDED_PORTAL_NOTIFICATIONS,
+    portalConfig: DEFAULT_PORTAL_CONFIG,
   };
 }
 

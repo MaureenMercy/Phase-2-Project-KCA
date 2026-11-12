@@ -28,6 +28,13 @@ export function stripStorePhotos(store: AppStore): AppStore {
         photo: "",
       }),
     ),
+    candidateApplications: store.candidateApplications.map((application) => ({
+      ...application,
+      photograph: application.photograph
+        ? { ...application.photograph, dataUrl: "" }
+        : null,
+      documents: application.documents.map((file) => ({ ...file, dataUrl: "" })),
+    })),
   };
 }
 
@@ -84,6 +91,31 @@ export function restoreStorePhotos(parsed: AppStore, seed: AppStore): AppStore {
         runningMatePhoto: item.runningMatePhoto || seeded?.runningMatePhoto,
       };
     }),
+    studentIdentities: parsed.studentIdentities?.length
+      ? parsed.studentIdentities
+      : seed.studentIdentities,
+    candidateProfiles: parsed.candidateProfiles ?? seed.candidateProfiles,
+    candidateApplications: (parsed.candidateApplications ?? seed.candidateApplications).map(
+      (application) => {
+        const seeded = seed.candidateApplications.find((item) => item.id === application.id);
+        return {
+          ...application,
+          photograph:
+            application.photograph && !application.photograph.dataUrl && seeded?.photograph
+              ? seeded.photograph
+              : application.photograph,
+          documents: application.documents.map((file) => {
+            if (file.dataUrl) return file;
+            const seededFile = seeded?.documents.find((item) => item.id === file.id);
+            return seededFile ?? file;
+          }),
+        };
+      },
+    ),
+    agentNominations: parsed.agentNominations ?? seed.agentNominations,
+    correctionRequests: parsed.correctionRequests ?? seed.correctionRequests,
+    portalNotifications: parsed.portalNotifications ?? seed.portalNotifications,
+    portalConfig: parsed.portalConfig ?? seed.portalConfig,
   };
 }
 

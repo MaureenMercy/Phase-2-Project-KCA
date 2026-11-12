@@ -1,4 +1,4 @@
-export const STORE_VERSION = 3;
+export const STORE_VERSION = 4;
 
 export const ELECTION_STAGES = [
   "REGISTRATION",
@@ -497,6 +497,13 @@ export type AppStore = {
   emergencies: EmergencyAction[];
   notices: PublicNotice[];
   disputes: DisputeRecord[];
+  studentIdentities: StudentIdentity[];
+  candidateProfiles: CandidateProfile[];
+  candidateApplications: CandidateApplication[];
+  agentNominations: AgentNomination[];
+  correctionRequests: CorrectionRequest[];
+  portalNotifications: PortalNotification[];
+  portalConfig: PortalConfig;
 };
 
 export type SessionState =
@@ -529,5 +536,211 @@ export type ElectorSessionPayload = {
   registrationNumber: string;
   fullName: string;
   electionId: string;
+  lastActivityAt: number;
+};
+
+export const CANDIDATE_APPLICATION_STATUSES = [
+  "Draft",
+  "Submitted",
+  "Under Review",
+  "Awaiting Additional Information",
+  "Approved",
+  "Rejected",
+] as const;
+
+export type CandidateApplicationStatus = (typeof CANDIDATE_APPLICATION_STATUSES)[number];
+
+export const CANDIDATE_APPLICATION_TYPES = ["DELEGATE", "SAKU_COUNCIL"] as const;
+
+export type CandidateApplicationType = (typeof CANDIDATE_APPLICATION_TYPES)[number];
+
+export const BALLOT_PARTICIPATION_STATUSES = [
+  "not_configured",
+  "configured_on_ballot",
+  "removed_from_ballot",
+] as const;
+
+export type BallotParticipationStatus = (typeof BALLOT_PARTICIPATION_STATUSES)[number];
+
+export const ELECTORAL_COLLEGE_KINDS = ["CAMPUS", "SCHOOL", "DEPARTMENT"] as const;
+
+export type ElectoralCollegeKind = (typeof ELECTORAL_COLLEGE_KINDS)[number];
+
+export type MappingStatus = "resolved" | "pending_configuration";
+
+export type DerivedElectoralCollege = {
+  kind: ElectoralCollegeKind | null;
+  campusId: string;
+  schoolId: string | null;
+  departmentId: string | null;
+  unitId: string | null;
+  label: string;
+  mappingStatus: MappingStatus;
+};
+
+export type StudentIdentity = {
+  id: string;
+  studentId: string;
+  fullName: string;
+  phoneNumber: string;
+  campusId: string;
+  schoolId: string;
+  departmentId: string | null;
+  programId: string | null;
+  programmeLabel: string;
+  nationalIdHash: string;
+  nationalIdEncrypted: string;
+  nationalIdLast4: string;
+  recordSource: "mock_first_year_register" | "operator_enrollment";
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type CandidateProfile = {
+  id: string;
+  studentId: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type ApplicationFile = {
+  id: string;
+  kind: string;
+  filename: string;
+  mimeType: string;
+  size: number;
+  dataUrl: string;
+  uploadedAt: string;
+};
+
+export type CandidateDeclarations = {
+  informationAccurate: boolean;
+  understandNotApproval: boolean;
+  consentToProcessIdentity: boolean;
+  acceptCandidateDeclaration: boolean;
+};
+
+export type CandidateApplication = {
+  id: string;
+  reference: string | null;
+  studentId: string;
+  candidateProfileId: string;
+  electionId: string;
+  applicationType: CandidateApplicationType | null;
+  status: CandidateApplicationStatus;
+  currentStep: 1 | 2 | 3 | 4 | 5;
+  campusId: string;
+  schoolId: string;
+  departmentId: string | null;
+  programId: string | null;
+  electoralCollege: DerivedElectoralCollege | null;
+  councilPositionId: string | null;
+  photograph: ApplicationFile | null;
+  documents: ApplicationFile[];
+  declarations: CandidateDeclarations;
+  outstandingRequirements: string[];
+  ballotParticipationStatus: BallotParticipationStatus;
+  submittedAt: string | null;
+  decidedAt: string | null;
+  decidedBy: string | null;
+  decisionNote: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type AgentNomination = {
+  id: string;
+  invitationReference: string;
+  candidateApplicationId: string;
+  nominatingStudentId: string;
+  proposedStudentId: string;
+  proposedFullName: string;
+  proposedPhoneMasked: string;
+  agentRegistrationComplete: boolean;
+  accreditationStatus: "not_accredited" | "accredited" | "declined";
+  status: "invited" | "withdrawn";
+  createdAt: string;
+};
+
+export type CorrectionRequestFieldKey =
+  | "fullName"
+  | "campusId"
+  | "schoolId"
+  | "departmentId"
+  | "programmeLabel"
+  | "phoneNumber";
+
+export type CorrectionRequest = {
+  id: string;
+  studentId: string;
+  applicationId: string | null;
+  field: CorrectionRequestFieldKey;
+  currentValue: string;
+  requestedValue: string;
+  reason: string;
+  status: "submitted" | "under_review" | "accepted" | "declined";
+  createdAt: string;
+};
+
+export type PortalNotification = {
+  id: string;
+  studentId: string;
+  title: string;
+  body: string;
+  createdAt: string;
+  read: boolean;
+  href: string;
+};
+
+export type IdentityDocumentType = {
+  id: string;
+  label: string;
+  enabled: boolean;
+};
+
+export type ApplicationWindow = {
+  status: "configured" | "awaiting_commission";
+  opensAt: string | null;
+  closesAt: string | null;
+};
+
+export type PositionDocumentRequirement = {
+  id: string;
+  label: string;
+  required: boolean;
+};
+
+export type CouncilPositionConfig = {
+  id: string;
+  contestId: CabinetContestId;
+  title: string;
+  openForApplications: boolean;
+  jointTicket: boolean;
+  eligibilitySummary: string[];
+  requiredDocuments: PositionDocumentRequirement[];
+};
+
+export type PortalConfig = {
+  identityDocumentTypes: IdentityDocumentType[];
+  alternativeIdPolicyStatus: "configured" | "awaiting_commission";
+  applicationWindows: Record<CandidateApplicationType, ApplicationWindow>;
+  jointTicketWorkflowStatus: "configured" | "awaiting_commission";
+  maxAgentsPerCandidate: number;
+  acceptedPhotoTypes: string[];
+  acceptedDocumentTypes: string[];
+  maxPhotoBytes: number;
+  maxDocumentBytes: number;
+  councilPositions: CouncilPositionConfig[];
+  delegateRequiredDocuments: PositionDocumentRequirement[];
+};
+
+export type CandidateSessionState = "pending_otp" | "authenticated";
+
+export type CandidateSessionPayload = {
+  kind: "candidate";
+  state: CandidateSessionState;
+  studentId: string;
+  studentIdentityId: string;
+  fullName: string;
   lastActivityAt: number;
 };

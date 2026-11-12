@@ -32,12 +32,20 @@ export default async function LandingPage() {
           {status}
         </p>
 
-        <Link
-          href="/commission/login"
-          className="mt-10 inline-flex min-w-[260px] items-center justify-center rounded-sm bg-gold px-8 py-3.5 text-sm font-bold tracking-[0.22em] text-navy uppercase transition hover:bg-gold-light focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-gold"
-        >
-          Commission Login
-        </Link>
+        <div className="mt-10 flex w-full max-w-md flex-col gap-3">
+          <Link
+            href="/commission/login"
+            className="inline-flex min-w-[260px] items-center justify-center rounded-sm bg-gold px-8 py-3.5 text-sm font-bold tracking-[0.22em] text-navy uppercase transition hover:bg-gold-light focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-gold"
+          >
+            Commission Login
+          </Link>
+          <Link
+            href="/candidate"
+            className="inline-flex min-w-[260px] items-center justify-center rounded-sm border border-gold/40 px-8 py-3.5 text-sm font-bold tracking-[0.18em] text-gold uppercase transition hover:border-gold hover:text-gold-light focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-gold"
+          >
+            Candidate Portal
+          </Link>
+        </div>
 
         <p className="mt-10 text-[11px] tracking-[0.34em] text-cream/55 uppercase">
           Secure · Transparent · Accessible

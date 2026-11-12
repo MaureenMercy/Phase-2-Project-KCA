@@ -39,5 +39,6 @@ describe("operator student roll", () => {
     expect(enrolled?.eligibilitySource).toBe("operator_enrollment");
     expect(enrolled?.courseLabel).toContain("School of Business");
     expect(store.studentMappings.some((item) => item.studentId === "24/09901")).toBe(true);
+    expect(store.studentIdentities.some((item) => item.studentId === "24/09901")).toBe(true);
   });
 });
