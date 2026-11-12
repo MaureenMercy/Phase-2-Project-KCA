@@ -32,14 +32,15 @@ function hashValue(value: string) {
   return createHash("sha256").update(value).digest("hex");
 }
 
-export async function issueOtp(userId: string) {
+export async function issueOtp(userId: string, options?: { ttlMs?: number }) {
   const demoOtp = isDemoHost()
     ? DEMO_HOST_OTP
     : String(randomInt(100000, 1000000)).padStart(6, "0");
+  const ttlMs = options?.ttlMs ?? 5 * 60 * 1000;
   const record = {
     hash: hashValue(demoOtp),
     demoOtp,
-    expiresAt: Date.now() + 5 * 60 * 1000,
+    expiresAt: Date.now() + ttlMs,
   };
   otpStore().set(userId, record);
   await opsSaveOtp(userId, record);
