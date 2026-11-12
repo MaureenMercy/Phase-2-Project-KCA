@@ -7,10 +7,12 @@ import {
   deriveElectoralCollege,
   validateElection1Readiness,
 } from "@/lib/electoral";
+import { contextElection, liveTotalsHidden, syncLegacyElection } from "@/lib/elections";
+import { ELECTION_1_ID, ELECTION_2_ID } from "@/lib/seed-electorate";
 import { assertPermission } from "@/lib/guard";
 import { appendAudit, writeStore } from "@/lib/store";
 import type { ActionResult } from "@/lib/actions/auth";
-import type { ElectionContest } from "@/lib/types";
+import type { ElectionContest, ResultsWorkflow } from "@/lib/types";
 
 export async function saveElectionConfiguration(input: {
   name: string;
@@ -33,14 +35,23 @@ export async function saveElectionConfiguration(input: {
   const gate = await assertPermission("configure_election");
   if ("error" in gate && gate.error) return { ok: false, error: gate.error };
 
-  const previous = `${gate.store.election.name} / ${gate.store.election.contest}`;
+  const target = contextElection(gate.store);
+  const previous = `${target.name} / ${target.contest}`;
   await writeStore((store) => {
-    store.election.name = parsed.data.name;
-    store.election.contest = parsed.data.contest;
-    store.election.electionDate = parsed.data.electionDate;
-    store.election.startTime = parsed.data.startTime;
-    store.election.endTime = parsed.data.endTime;
-    store.election.updatedAt = new Date().toISOString();
+    const active = contextElection(store);
+    store.elections = store.elections.map((item) =>
+      item.id === active.id
+        ? {
+            ...item,
+            name: parsed.data.name,
+            electionDate: parsed.data.electionDate,
+            startTime: parsed.data.startTime,
+            endTime: parsed.data.endTime,
+            updatedAt: new Date().toISOString(),
+          }
+        : item,
+    );
+    syncLegacyElection(store);
     return store;
   });
 
@@ -90,6 +101,24 @@ export async function saveDelegateSeats(input: {
         updatedAt: new Date().toISOString(),
       };
     });
+    store.structuralAudit = [
+      {
+        id: `sa-${crypto.randomUUID()}`,
+        at: new Date().toISOString(),
+        actorWorkId: gate.session.workId,
+        actorName: gate.session.fullName,
+        entity: "electoral_unit",
+        entityId: parsed.data.unitId,
+        field: "delegateSeats",
+        oldValue,
+        newValue: String(parsed.data.seats),
+        reason: parsed.data.submit ? "Submitted seat allocation" : "Draft seat allocation",
+        electionId: ELECTION_1_ID,
+        configurationVersionId: store.electoralUnits.find((unit) => unit.id === parsed.data.unitId)
+          ?.configurationVersionId ?? null,
+      },
+      ...store.structuralAudit,
+    ];
     return store;
   });
 
@@ -265,6 +294,21 @@ export async function finalizeElection1Results(): Promise<ActionResult> {
   const elected = computeElectedDelegates(gate.store);
   await writeStore((store) => {
     store.electedDelegates = elected;
+    store.resultsByElection = store.resultsByElection.map((item) =>
+      item.electionId === ELECTION_1_ID
+        ? {
+            ...item,
+            workflow: "GENERATED",
+            generatedAt: new Date().toISOString(),
+            totals: elected.map((delegate) => ({
+              candidateId: delegate.candidateId,
+              fullName: delegate.fullName,
+              votes: delegate.votesReceived,
+              unitId: delegate.unitId,
+            })),
+          }
+        : item,
+    );
     return store;
   });
   await appendAudit({
@@ -285,17 +329,50 @@ export async function generateElectoralCollege(): Promise<ActionResult> {
     return { ok: false, error: "Finalize Election 1 results before generating the Electoral College Register." };
   }
 
-  const entries = deriveElectoralCollege(gate.store, gate.store.electedDelegates);
+  const results = gate.store.resultsByElection.find((item) => item.electionId === ELECTION_1_ID);
+  if (!results || !["VERIFIED", "DECLARATION_AUTHORIZED", "DECLARED", "PUBLISHED"].includes(results.workflow)) {
+    return {
+      ok: false,
+      error: "Verify Election 1 results before generating the Electoral College Register.",
+    };
+  }
+  const confirmed = gate.store.electedDelegates.map((item) => ({ ...item, confirmed: true }));
+  const entries = deriveElectoralCollege(gate.store, confirmed);
   await writeStore((store) => {
+    if (store.electoralCollege.version > 0) {
+      store.electoralCollegeHistory = [
+        {
+          version: store.electoralCollege.version,
+          snapshot: store.electoralCollege,
+          createdAt: new Date().toISOString(),
+          createdBy: gate.session.fullName,
+          reason: "Superseded by a new generated register. Previous version preserved.",
+        },
+        ...store.electoralCollegeHistory,
+      ];
+    }
+    store.electedDelegates = confirmed;
     store.electoralCollege = {
-      electionId: store.election.id,
+      electionId: ELECTION_2_ID,
+      sourceElectionId: ELECTION_1_ID,
+      version: store.electoralCollege.version + 1,
       status: "draft",
       generatedAt: new Date().toISOString(),
       verifiedAt: null,
       verifiedBy: null,
+      approvedAt: null,
+      approvedBy: null,
       entries,
     };
-    store.electedDelegates = store.electedDelegates.map((item) => ({ ...item, confirmed: true }));
+    store.studentElectors = store.studentElectors.map((student) => {
+      const elected = confirmed.some((item) => item.studentId === student.studentId);
+      return {
+        ...student,
+        electedDelegateStatus: elected ? "elected" : "not_elected",
+        electoralCollegeEligibility: elected ? "pending" : "not_applicable",
+        election2Eligibility: elected ? "pending" : "not_applicable",
+      };
+    });
     return store;
   });
   await appendAudit({
@@ -325,13 +402,26 @@ export async function verifyElectoralCollege(): Promise<ActionResult> {
       status: "active",
       verifiedAt: new Date().toISOString(),
       verifiedBy: gate.session.fullName,
+      approvedAt: new Date().toISOString(),
+      approvedBy: gate.session.fullName,
       entries: store.electoralCollege.entries.map((entry) => ({
         ...entry,
         electorStatus: entry.electorStatus === "voted" ? "voted" : "active",
       })),
     };
-    store.election.contest = "SAKU_LEADERSHIP";
-    store.election.updatedAt = new Date().toISOString();
+    const electors = new Set(store.electoralCollege.entries.map((entry) => entry.studentId));
+    store.studentElectors = store.studentElectors.map((student) =>
+      electors.has(student.studentId)
+        ? {
+            ...student,
+            electoralCollegeEligibility: "eligible",
+            election2Eligibility: "eligible",
+            election2VotingStatus: student.election2VotingStatus === "voted" ? "voted" : "not_voted",
+          }
+        : student,
+    );
+    store.activeElectionContext = "ELECTION_2";
+    syncLegacyElection(store);
     return store;
   });
   await appendAudit({
@@ -340,6 +430,119 @@ export async function verifyElectoralCollege(): Promise<ActionResult> {
     action: "verify_electoral_college",
     detail: "Verified the Electoral College Register. SAKU Leadership Election electorate is now active.",
     highRisk: false,
+  });
+  revalidatePath("/", "layout");
+  return { ok: true };
+}
+
+const RESULTS_ORDER: ResultsWorkflow[] = [
+  "NOT_STARTED",
+  "GENERATED",
+  "RECONCILED",
+  "VERIFIED",
+  "DECLARATION_AUTHORIZED",
+  "DECLARED",
+  "PUBLISHED",
+];
+
+export async function advanceResultsWorkflow(electionId: string): Promise<ActionResult> {
+  const currentStore = (await assertPermission("view_results")).store;
+  const current = currentStore.resultsByElection.find((item) => item.electionId === electionId);
+  const next = current ? RESULTS_ORDER[Math.min(RESULTS_ORDER.indexOf(current.workflow) + 1, RESULTS_ORDER.length - 1)] : "GENERATED";
+  const needed =
+    next === "DECLARATION_AUTHORIZED" || next === "DECLARED" || next === "PUBLISHED"
+      ? "authorize_results"
+      : "reconcile_results";
+  const gate = await assertPermission(needed);
+  if ("error" in gate && gate.error) return { ok: false, error: gate.error };
+  const record = gate.store.resultsByElection.find((item) => item.electionId === electionId);
+  if (!record) return { ok: false, error: "Results record not found." };
+  const election = gate.store.elections.find((item) => item.id === electionId) ?? gate.store.election;
+  if (liveTotalsHidden(election) && record.workflow === "NOT_STARTED") {
+    return { ok: false, error: "Candidate totals are not available while voting is still active." };
+  }
+  const following = RESULTS_ORDER[Math.min(RESULTS_ORDER.indexOf(record.workflow) + 1, RESULTS_ORDER.length - 1)];
+  await writeStore((store) => {
+    store.resultsByElection = store.resultsByElection.map((item) =>
+      item.electionId === electionId
+        ? {
+            ...item,
+            workflow: following,
+            authorizedBy:
+              following === "DECLARATION_AUTHORIZED" ? gate.session.fullName : item.authorizedBy,
+            declaredAt: following === "DECLARED" ? new Date().toISOString() : item.declaredAt,
+            publishedAt: following === "PUBLISHED" ? new Date().toISOString() : item.publishedAt,
+          }
+        : item,
+    );
+    store.elections = store.elections.map((item) =>
+      item.id === electionId ? { ...item, resultsWorkflow: following } : item,
+    );
+    syncLegacyElection(store);
+    return store;
+  });
+  await appendAudit({
+    actorWorkId: gate.session.workId,
+    actorName: gate.session.fullName,
+    action: "results_workflow",
+    detail: `${election.shortName} results moved to ${following}. Closing does not declare results.`,
+    highRisk: following === "DECLARED" || following === "PUBLISHED",
+    entity: "results",
+    entityId: electionId,
+  });
+  revalidatePath("/commission/election");
+  return { ok: true };
+}
+
+export async function closeElectionWide(input: {
+  closingNote: string;
+  exception: boolean;
+}): Promise<ActionResult> {
+  const gate = await assertPermission("authorize_election_closing");
+  if ("error" in gate && gate.error) return { ok: false, error: gate.error };
+  if ("needsReauth" in gate && gate.needsReauth) {
+    return { ok: false, error: "Re-authentication is required.", needsReauth: true };
+  }
+  const election = contextElection(gate.store);
+  if (election.stage !== "VOTING") {
+    return { ok: false, error: "This election is not open." };
+  }
+  const states = gate.store.stationElectionState.filter((item) => item.electionId === election.id);
+  const closed = states.filter((item) => item.status === "CLOSED").length;
+  const blocking = states.filter((item) => item.status === "OPEN" || item.status === "READY");
+  if (blocking.length && !input.exception) {
+    return {
+      ok: false,
+      error: `Election not ready to close. ${blocking.length} polling station${blocking.length === 1 ? " has" : "s have"} not reported as CLOSED.`,
+    };
+  }
+
+  const voteCount = states.reduce((sum, item) => sum + item.votesCast, 0);
+  await writeStore((store) => {
+    store.elections = store.elections.map((item) =>
+      item.id === election.id
+        ? {
+            ...item,
+            stage: "CLOSED",
+            closedAt: new Date().toISOString(),
+            closedBy: gate.session.fullName,
+            closingNote: input.closingNote.trim(),
+            closingExceptionUsed: input.exception,
+          }
+        : item,
+    );
+    syncLegacyElection(store);
+    return store;
+  });
+  await appendAudit({
+    actorWorkId: gate.session.workId,
+    actorName: gate.session.fullName,
+    action: "authorize_election_closing",
+    detail: `Closed ${election.name}. Votes at closure: ${voteCount}. Stations reporting closed: ${closed}/${states.length || 4}. Results not declared.`,
+    highRisk: true,
+    entity: "election",
+    entityId: election.id,
+    reason: input.closingNote.trim() || undefined,
   });
   revalidatePath("/", "layout");
   return { ok: true };

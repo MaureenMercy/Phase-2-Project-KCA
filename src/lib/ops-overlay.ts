@@ -23,7 +23,9 @@ export async function overlayPersistedVotes(store: AppStore): Promise<AppStore> 
   return {
     ...store,
     studentElectors: store.studentElectors.map((student) =>
-      votedStudents.has(student.studentId) ? { ...student, voterStatus: "voted" } : student,
+      votedStudents.has(student.studentId)
+        ? { ...student, voterStatus: "voted", election1VotingStatus: "voted" }
+        : student,
     ),
     delegateCandidates: store.delegateCandidates.map((candidate) =>
       extraVotes.has(candidate.id)

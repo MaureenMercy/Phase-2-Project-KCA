@@ -3,7 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import type { ActionResult } from "@/lib/actions/auth";
-import { assertPermission, assignedStationId } from "@/lib/guard";
+import { contextElection } from "@/lib/elections";
+import { assertOwnStation, assertPermission } from "@/lib/guard";
 import { COMMISSION_MEMBERS } from "@/lib/seed";
 import { appendAudit, writeStore } from "@/lib/store";
 import type { StationReadiness } from "@/lib/types";
@@ -15,16 +16,12 @@ export async function updateStationReadiness(
   const gate = await assertPermission("station_operations");
   if ("error" in gate && gate.error) return { ok: false, error: gate.error };
 
-  const mine = assignedStationId(gate.session);
-  if (mine && mine !== stationId) {
-    return { ok: false, error: "You may only administer your assigned polling station." };
-  }
-  if (!mine && gate.session.role === "COMMISSIONER") {
-    return { ok: false, error: "No polling station is assigned to this commissioner." };
-  }
+  const stationError = assertOwnStation(gate.session, stationId);
+  if (stationError) return { ok: false, error: stationError };
 
   const ready = Object.values(readiness).every(Boolean);
   await writeStore((store) => {
+    const electionId = contextElection(store).id;
     store.pollingStations = store.pollingStations.map((station) =>
       station.id === stationId
         ? {
@@ -37,6 +34,20 @@ export async function updateStationReadiness(
                 : "NOT_READY",
           }
         : station,
+    );
+    store.stationElectionState = store.stationElectionState.map((item) =>
+      item.stationId === stationId && item.electionId === electionId
+        ? {
+            ...item,
+            readiness,
+            status:
+              item.status === "OPEN" || item.status === "CLOSED"
+                ? item.status
+                : ready
+                  ? "READY"
+                  : "NOT_READY",
+          }
+        : item,
     );
     return store;
   });
@@ -56,21 +67,26 @@ export async function updateStationReadiness(
 export async function openPollingStation(stationId: string): Promise<ActionResult> {
   const gate = await assertPermission("station_operations");
   if ("error" in gate && gate.error) return { ok: false, error: gate.error };
-  if (gate.store.election.emergencyStatus === "PAUSED") {
+  const stationError = assertOwnStation(gate.session, stationId);
+  if (stationError) return { ok: false, error: stationError };
+
+  const election = contextElection(gate.store);
+  if (election.emergencyStatus === "PAUSED") {
     return { ok: false, error: "The election is paused. Station opening is suspended." };
   }
-  if (gate.store.election.stage !== "VOTING") {
+  if (election.stage !== "VOTING") {
     return { ok: false, error: "The Commission must authorize election opening before a station can open." };
-  }
-
-  const mine = assignedStationId(gate.session);
-  if (gate.session.role === "COMMISSIONER" && mine !== stationId) {
-    return { ok: false, error: "You may only open your assigned polling station." };
   }
 
   const station = gate.store.pollingStations.find((item) => item.id === stationId);
   if (!station) return { ok: false, error: "Unknown polling station." };
-  if (station.votesCast !== 0) {
+  if (station.frozen) {
+    return { ok: false, error: "This station is frozen and cannot be opened until resumption is authorised." };
+  }
+  const state = gate.store.stationElectionState.find(
+    (item) => item.stationId === stationId && item.electionId === election.id,
+  );
+  if ((state?.votesCast ?? station.votesCast) !== 0) {
     return { ok: false, error: "The vote counter must be at zero before opening." };
   }
   if (!Object.values(station.readiness).every(Boolean)) {
@@ -81,14 +97,15 @@ export async function openPollingStation(stationId: string): Promise<ActionResul
   }
 
   await writeStore((store) => {
+    const openedAt = new Date().toISOString();
     store.pollingStations = store.pollingStations.map((item) =>
       item.id === stationId
-        ? {
-            ...item,
-            status: "OPEN",
-            openedAt: new Date().toISOString(),
-            openedBy: gate.session.fullName,
-          }
+        ? { ...item, status: "OPEN", openedAt, openedBy: gate.session.fullName }
+        : item,
+    );
+    store.stationElectionState = store.stationElectionState.map((item) =>
+      item.stationId === stationId && item.electionId === election.id
+        ? { ...item, status: "OPEN", openedAt, openedBy: gate.session.fullName }
         : item,
     );
     return store;
@@ -107,23 +124,37 @@ export async function openPollingStation(stationId: string): Promise<ActionResul
   return { ok: true };
 }
 
-export async function closePollingStation(stationId: string): Promise<ActionResult> {
+export async function closePollingStation(stationId: string, closingNote = ""): Promise<ActionResult> {
   const gate = await assertPermission("station_operations");
   if ("error" in gate && gate.error) return { ok: false, error: gate.error };
+  const stationError = assertOwnStation(gate.session, stationId);
+  if (stationError) return { ok: false, error: stationError };
 
-  const mine = assignedStationId(gate.session);
-  if (gate.session.role === "COMMISSIONER" && mine !== stationId) {
-    return { ok: false, error: "You may only close your assigned polling station." };
-  }
+  const election = contextElection(gate.store);
+  const station = gate.store.pollingStations.find((item) => item.id === stationId);
+  if (!station) return { ok: false, error: "Unknown polling station." };
 
   await writeStore((store) => {
+    const closedAt = new Date().toISOString();
     store.pollingStations = store.pollingStations.map((item) =>
       item.id === stationId
         ? {
             ...item,
             status: "CLOSED",
-            closedAt: new Date().toISOString(),
+            closedAt,
             closedBy: gate.session.fullName,
+            closingNote: closingNote.trim() || item.closingNote,
+          }
+        : item,
+    );
+    store.stationElectionState = store.stationElectionState.map((item) =>
+      item.stationId === stationId && item.electionId === election.id
+        ? {
+            ...item,
+            status: "CLOSED",
+            closedAt,
+            closedBy: gate.session.fullName,
+            closingNote: closingNote.trim() || item.closingNote,
           }
         : item,
     );
@@ -133,10 +164,10 @@ export async function closePollingStation(stationId: string): Promise<ActionResu
     actorWorkId: gate.session.workId,
     actorName: gate.session.fullName,
     action: "close_polling_station",
-    detail: `Closed polling station ${stationId}.`,
+    detail: `Closed ${station.name} for ${election.shortName}. Other stations are unchanged.`,
     highRisk: true,
     stationId,
-    electionStage: gate.store.election.stage,
+    electionStage: election.stage,
   });
   revalidatePath("/commission/stations");
   return { ok: true };

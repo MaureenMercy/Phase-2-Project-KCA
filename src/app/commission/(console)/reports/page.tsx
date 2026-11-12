@@ -28,14 +28,17 @@ export default async function ReportsPage() {
       <section className="rounded-2xl border border-navy/10 bg-white/90 p-6">
         <h2 className="font-serif text-2xl text-navy">Election incident summary</h2>
         <p className="mt-1 text-sm text-navy/60">
-          Total incidents: {store.incidents.length}. Generated from the four
-          station logs.
+          Total incidents: {store.incidents.length}. Sources are the four campus
+          Commissioners and accredited election agents, consolidated in the central incident log.
         </p>
         <ul className="mt-4 divide-y divide-navy/10 text-sm">
           {store.pollingStations.map((station) => (
             <li key={station.id} className="flex justify-between py-2">
               <span>{station.name}</span>
-              <span>{store.incidents.filter((item) => item.stationId === station.id).length}</span>
+              <span>
+                {store.incidents.filter((item) => item.stationId === station.id).length} total ·{" "}
+                {store.incidents.filter((item) => item.stationId === station.id && item.reporterKind === "agent").length} agent
+              </span>
             </li>
           ))}
         </ul>

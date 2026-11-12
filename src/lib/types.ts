@@ -1,4 +1,4 @@
-export const STORE_VERSION = 3;
+export const STORE_VERSION = 5;
 
 export const ELECTION_STAGES = [
   "REGISTRATION",
@@ -29,8 +29,12 @@ export const ELECTORAL_PERMISSIONS = [
   "view_dashboard",
   "configure_election",
   "configure_delegate_seats",
+  "view_candidates",
   "approve_candidates",
+  "lock_candidate_list",
   "approve_voter_register",
+  "review_voter_exceptions",
+  "decide_voter_exceptions",
   "assign_polling_stations",
   "manage_commission_records",
   "station_operations",
@@ -39,11 +43,15 @@ export const ELECTORAL_PERMISSIONS = [
   "authorize_election_opening",
   "authorize_election_closing",
   "view_results",
+  "reconcile_results",
   "authorize_results",
+  "declare_results",
   "manage_media",
   "view_legal",
   "view_reports",
   "view_accessibility",
+  "view_agents",
+  "accredit_agents",
   "view_audit_trail",
   "initiate_emergency",
   "authorize_emergency",
@@ -145,10 +153,28 @@ export type PollingStation = {
   networkAuthorized: boolean;
   serverReady: boolean;
   readiness: StationReadiness;
+  frozen: boolean;
+  frozenAt: string | null;
+  frozenReason: string | null;
   openedAt: string | null;
   openedBy: string | null;
   closedAt: string | null;
   closedBy: string | null;
+  closingNote: string | null;
+};
+
+export type StationElectionState = {
+  electionId: string;
+  stationId: string;
+  status: StationState;
+  votesCast: number;
+  readiness: StationReadiness;
+  frozen: boolean;
+  openedAt: string | null;
+  openedBy: string | null;
+  closedAt: string | null;
+  closedBy: string | null;
+  closingNote: string | null;
 };
 
 export type CandidateRecord = {
@@ -201,8 +227,29 @@ export type VoterRegister = {
   approvedBy: string | null;
 };
 
+export const RESULTS_WORKFLOWS = [
+  "NOT_STARTED",
+  "GENERATED",
+  "RECONCILED",
+  "VERIFIED",
+  "DECLARATION_AUTHORIZED",
+  "DECLARED",
+  "PUBLISHED",
+] as const;
+
+export type ResultsWorkflow = (typeof RESULTS_WORKFLOWS)[number];
+
+export const ELECTION_CONTEXTS = [
+  "ELECTION_1",
+  "ELECTORAL_COLLEGE",
+  "ELECTION_2",
+] as const;
+
+export type ElectionContext = (typeof ELECTION_CONTEXTS)[number];
+
 export type ElectionRecord = {
   id: string;
+  cycleId: string;
   name: string;
   shortName: string;
   year: number;
@@ -215,16 +262,29 @@ export type ElectionRecord = {
   emergencyStatus: "RUNNING" | "PAUSED";
   openedAt: string | null;
   closedAt: string | null;
+  closedBy: string | null;
+  closingNote: string | null;
+  closingExceptionUsed: boolean;
+  resultsWorkflow: ResultsWorkflow;
   resultsAuthorizedAt: string | null;
   resultsAuthorizedBy: string | null;
   createdAt: string;
   updatedAt: string;
 };
 
+export const ELECTORAL_STRUCTURES = [
+  "DEPARTMENT",
+  "SCHOOL",
+  "CAMPUS_WIDE",
+] as const;
+
+export type ElectoralStructure = (typeof ELECTORAL_STRUCTURES)[number];
+
 export type Campus = {
   id: string;
   name: string;
   code: string;
+  electoralStructure: ElectoralStructure;
   status: "active" | "inactive";
   createdAt: string;
   updatedAt: string;
@@ -265,20 +325,42 @@ export type ElectoralUnitConfiguration = {
   id: string;
   electionId: string;
   campusId: string;
-  schoolId: string;
+  schoolId: string | null;
   departmentId: string | null;
   programId: string | null;
+  unitKind: ElectoralStructure;
   delegateSeats: number | null;
   seatStatus: "UNCONFIGURED" | "DRAFT" | "SUBMITTED" | "APPROVED";
+  allocationSource: string | null;
+  allocationVersion: string | null;
+  allocationReviewNote: string | null;
+  configurationVersionId: string;
   status: "active" | "inactive";
   createdAt: string;
   updatedAt: string;
+};
+
+export type AccessibilityCategory =
+  | "visual"
+  | "hearing"
+  | "mobility"
+  | "cognitive"
+  | "other";
+
+export type AccessibilityProfile = {
+  declared: boolean;
+  categories: AccessibilityCategory[];
+  accommodations: string[];
+  notes: string;
+  updatedAt: string | null;
+  consentToShareOperationally: boolean;
 };
 
 export type StudentElector = {
   id: string;
   studentId: string;
   fullName: string;
+  gender: "F" | "M" | "X" | "UNSPECIFIED";
   yearOfStudy: number;
   campusId: string;
   schoolId: string;
@@ -286,8 +368,16 @@ export type StudentElector = {
   programId: string | null;
   eligibilityStatus: "eligible" | "ineligible" | "pending";
   eligibilitySource: "mock_first_year_register" | "operator_enrollment";
+  election1Eligibility: "eligible" | "ineligible" | "pending";
+  election1VotingStatus: "not_voted" | "voted";
+  electedDelegateStatus: "not_applicable" | "pending_confirmation" | "elected" | "not_elected";
+  electoralCollegeEligibility: "not_applicable" | "pending" | "eligible" | "ineligible";
+  election2Eligibility: "not_applicable" | "pending" | "eligible" | "ineligible";
+  election2VotingStatus: "not_applicable" | "not_voted" | "voted";
+  verificationStatus: "unverified" | "verified" | "mismatch";
   courseLabel?: string;
   voterStatus: "not_voted" | "voted";
+  accessibility: AccessibilityProfile;
   createdAt: string;
   updatedAt: string;
 };
@@ -295,8 +385,9 @@ export type StudentElector = {
 export type StudentElectoralMapping = {
   studentId: string;
   electionId: string;
+  electoralUnitId: string;
   campusId: string;
-  schoolId: string;
+  schoolId: string | null;
   departmentId: string | null;
   programId: string | null;
   eligibilityStatus: "eligible" | "ineligible" | "pending";
@@ -327,7 +418,9 @@ export type DelegateVote = {
   electionId: string;
   studentId: string;
   unitId: string;
+  candidateId: string;
   candidateIds: string[];
+  receiptReference: string;
   castAt: string;
 };
 
@@ -339,6 +432,10 @@ export type ElectedDelegate = {
   unitId: string;
   fullName: string;
   votesReceived: number;
+  gender: StudentElector["gender"];
+  rank: number;
+  genderRuleApplied: boolean;
+  genderRuleNote: string | null;
   confirmed: boolean;
 };
 
@@ -360,24 +457,86 @@ export type ElectoralCollegeEntry = {
 
 export type ElectoralCollegeRegister = {
   electionId: string;
+  sourceElectionId: string;
+  version: number;
   status: "not_generated" | "draft" | "verified" | "active";
   generatedAt: string | null;
   verifiedAt: string | null;
   verifiedBy: string | null;
+  approvedAt: string | null;
+  approvedBy: string | null;
   entries: ElectoralCollegeEntry[];
+};
+
+export type ElectoralCollegeVersion = {
+  version: number;
+  snapshot: ElectoralCollegeRegister;
+  createdAt: string;
+  createdBy: string;
+  reason: string;
 };
 
 export type CabinetCandidate = {
   id: string;
+  studentId?: string;
   contestId: CabinetContestId;
+  constitutionalOfficeId: string;
   fullName: string;
   photo: string;
+  gender?: StudentElector["gender"];
   runningMateId?: string;
+  runningMateStudentId?: string;
   runningMateName?: string;
   runningMatePhoto?: string;
+  runningMateGender?: StudentElector["gender"];
   ticketLabel?: string;
   status: "approved";
 };
+
+export const CONSTITUTIONAL_OFFICES = [
+  {
+    id: "special-interest-secretary",
+    contestId: "special-interests" as CabinetContestId,
+    constitutionalTitle: "Special Interest Secretary",
+    prototypeLabel: "Special Interests Secretary",
+    namingDiscrepancy: true,
+  },
+  {
+    id: "sports-entertainment-secretary",
+    contestId: "sports" as CabinetContestId,
+    constitutionalTitle: "Sports and Entertainment Secretary",
+    prototypeLabel: "Sports & Entertainment Secretary",
+    namingDiscrepancy: false,
+  },
+  {
+    id: "academic-secretary",
+    contestId: "academic" as CabinetContestId,
+    constitutionalTitle: "Academic Secretary",
+    prototypeLabel: "Academic Secretary",
+    namingDiscrepancy: false,
+  },
+  {
+    id: "treasurer",
+    contestId: "treasurer" as CabinetContestId,
+    constitutionalTitle: "Treasurer",
+    prototypeLabel: "Treasurer / Finance Secretary",
+    namingDiscrepancy: true,
+  },
+  {
+    id: "secretary-general",
+    contestId: "secretary-general" as CabinetContestId,
+    constitutionalTitle: "Secretary General",
+    prototypeLabel: "Secretary General",
+    namingDiscrepancy: false,
+  },
+  {
+    id: "chairperson-ticket",
+    contestId: "president-ticket" as CabinetContestId,
+    constitutionalTitle: "Chairperson + Vice Chairperson",
+    prototypeLabel: "President + Vice President",
+    namingDiscrepancy: true,
+  },
+] as const;
 
 export type CabinetBallotDraft = {
   electorId: string;
@@ -392,6 +551,7 @@ export type CabinetVote = {
   electionId: string;
   electorId: string;
   selections: Record<CabinetContestId, string>;
+  receiptReference: string;
   submittedAt: string;
 };
 
@@ -412,6 +572,7 @@ export type IncidentEvidence = {
   mimeType: string;
   storedName: string;
   reference: string;
+  kind: "photograph" | "video" | "document";
   uploadedAt: string;
   uploadedBy: string;
 };
@@ -422,7 +583,10 @@ export type IncidentRecord = {
   stationId: string;
   reportedByWorkId: string;
   reportedByName: string;
-  reporterRole: CommissionRole;
+  reporterRole: CommissionRole | "AGENT";
+  reporterKind: "commission" | "agent";
+  agentId?: string | null;
+  linkedIncidentId?: string | null;
   category: "process" | "technical" | "security" | "conduct" | "other";
   description: string;
   occurredAt: string;
@@ -437,6 +601,8 @@ export type EmergencyAction = {
   id: string;
   electionId: string;
   kind: "PAUSE" | "RESUME";
+  scope: "STATION" | "ALL";
+  stationIds: string[];
   initiatedByWorkId: string;
   initiatedByName: string;
   initiatedAt: string;
@@ -449,6 +615,129 @@ export type EmergencyAction = {
   statusAfter: "RUNNING" | "PAUSED" | null;
   status: "pending_authorization" | "authorized" | "rejected";
   durationMinutes?: number | null;
+};
+
+export type CandidateApplication = {
+  id: string;
+  studentId: string;
+  fullName: string;
+  electionKind: "DELEGATE" | "COUNCIL";
+  electionId: string;
+  positionLabel: string;
+  contestId?: CabinetContestId;
+  electoralUnitId: string | null;
+  runningMateStudentId?: string | null;
+  runningMateName?: string | null;
+  photo: string;
+  applicationStatus: "SUBMITTED" | "UNDER_REVIEW";
+  vettingStatus: "PENDING" | "APPROVED" | "REJECTED";
+  participationStatus: "NOT_SELECTED" | "SELECTED";
+  verificationStatus: "NOT_SENT" | "SENT" | "VERIFIED" | "ISSUE_REPORTED";
+  configurationStatus: "DRAFT" | "CONFIRMED" | "LOCKED";
+  documents: { id: string; title: string; reference: string }[];
+  vettingNotes: string;
+  submittedAt: string;
+  reviewedBy: string | null;
+  reviewedAt: string | null;
+};
+
+export type CandidateConfigurationLock = {
+  electionId: string;
+  status: "DRAFT" | "CONFIRMED" | "LOCKED";
+  lockedAt: string | null;
+  lockedBy: string | null;
+};
+
+export type AgentRecord = {
+  id: string;
+  agentCode: string;
+  fullName: string;
+  registrationNumber: string;
+  passwordHash: string;
+  candidateApplicationId: string;
+  candidateStudentId: string;
+  candidateName: string;
+  electionId: string;
+  nominationStatus: "NOMINATED" | "ACTIVATED";
+  accreditationStatus: "PENDING" | "ACCREDITED" | "DECLINED" | "SUSPENDED";
+  permittedStationIds: string[];
+  accreditedAt: string | null;
+  accreditedBy: string | null;
+  createdAt: string;
+};
+
+export type AgentAttendance = {
+  id: string;
+  agentId: string;
+  stationId: string;
+  checkInAt: string | null;
+  checkOutAt: string | null;
+  recordedBy: string | null;
+};
+
+export type AgentObservation = {
+  id: string;
+  agentId: string;
+  stationId: string;
+  body: string;
+  createdAt: string;
+  linkedIncidentId: string | null;
+};
+
+export type VoterException = {
+  id: string;
+  reference: string;
+  studentId: string | null;
+  fullName: string;
+  registrationNumber: string;
+  campusId: string;
+  issue: "MISSING_FROM_REGISTER" | "RECORD_MISMATCH" | "DOCUMENTATION" | "OTHER";
+  reason: string;
+  verificationSource: string;
+  status: "PENDING" | "MORE_INFO" | "APPROVED" | "REJECTED";
+  submittedByWorkId: string;
+  submittedByName: string;
+  submittedAt: string;
+  assignedReviewer: string | null;
+  decisionNote: string | null;
+  decidedBy: string | null;
+  decidedAt: string | null;
+  documents: { id: string; title: string; reference: string }[];
+};
+
+export type AccessibilityReadiness = {
+  campusId: string;
+  stationId: string;
+  preparedCount: number;
+  outstandingCount: number;
+  notes: string;
+  updatedAt: string;
+};
+
+export type ElectionResultRecord = {
+  electionId: string;
+  workflow: ResultsWorkflow;
+  generatedAt: string | null;
+  totals: { candidateId: string; fullName: string; votes: number; unitId?: string; contestId?: string }[];
+  discrepancies: { id: string; detail: string; status: "open" | "resolved" }[];
+  authorizedBy: string | null;
+  declaredAt: string | null;
+  publishedAt: string | null;
+};
+
+export type StructuralAuditEvent = {
+  id: string;
+  at: string;
+  actorWorkId: string;
+  actorName: string;
+  entity: string;
+  entityId: string;
+  field: string;
+  oldValue: string | null;
+  newValue: string | null;
+  reason: string;
+  electionId: string;
+  configurationVersionId: string | null;
 };
 
 export type PublicNotice = {
@@ -472,12 +761,17 @@ export type DisputeRecord = {
 
 export type AppStore = {
   version: number;
+  cycleId: string;
   election: ElectionRecord;
+  elections: ElectionRecord[];
+  activeElectionContext: ElectionContext;
   pollingStations: PollingStation[];
+  stationElectionState: StationElectionState[];
   candidates: CandidateRecord[];
   voterRegister: VoterRegister;
   notifications: NotificationItem[];
   auditLog: AuditEvent[];
+  structuralAudit: StructuralAuditEvent[];
   campuses: Campus[];
   schools: School[];
   departments: ElectoralDepartment[];
@@ -485,13 +779,24 @@ export type AppStore = {
   electoralUnits: ElectoralUnitConfiguration[];
   studentElectors: StudentElector[];
   studentMappings: StudentElectoralMapping[];
+  candidateApplications: CandidateApplication[];
+  candidateLocks: CandidateConfigurationLock[];
   delegateCandidates: DelegateCandidate[];
   delegateVotes: DelegateVote[];
   electedDelegates: ElectedDelegate[];
   electoralCollege: ElectoralCollegeRegister;
+  electoralCollegeHistory: ElectoralCollegeVersion[];
   cabinetCandidates: CabinetCandidate[];
   cabinetDrafts: CabinetBallotDraft[];
   cabinetVotes: CabinetVote[];
+  agents: AgentRecord[];
+  agentAttendance: AgentAttendance[];
+  agentObservations: AgentObservation[];
+  voterExceptions: VoterException[];
+  accessibilityReadiness: AccessibilityReadiness[];
+  resultsByElection: ElectionResultRecord[];
+  namingDiscrepancies: { officeId: string; note: string }[];
+  policyFlags: { id: string; topic: string; status: "needs_confirmation"; detail: string }[];
   assignments: AssignmentRecord[];
   incidents: IncidentRecord[];
   emergencies: EmergencyAction[];

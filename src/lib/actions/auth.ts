@@ -408,17 +408,32 @@ export async function authorizeElectionOpening(): Promise<ActionResult> {
   }
 
   const { validateElection1Readiness } = await import("@/lib/electoral");
-  const seatIssues = validateElection1Readiness(gate.store).filter((issue) => issue.code === "seats");
-  if (gate.store.election.contest === "ELECTION_1_DELEGATE" && seatIssues.length) {
+  const { contextElection, election2, syncLegacyElection } = await import("@/lib/elections");
+  const target = contextElection(gate.store);
+  if (target.contest === "ELECTION_1_DELEGATE") {
+    const seatIssues = validateElection1Readiness(gate.store).filter((issue) => issue.code === "seats");
+    if (seatIssues.length) {
+      return {
+        ok: false,
+        error: `Election 1 cannot open while ${seatIssues.length} electoral unit${seatIssues.length === 1 ? " has" : "s have"} no delegate-seat number.`,
+      };
+    }
+  }
+  if (target.contest === "SAKU_LEADERSHIP" && gate.store.electoralCollege.status !== "active") {
     return {
       ok: false,
-      error: `Election 1 cannot open while ${seatIssues.length} electoral unit${seatIssues.length === 1 ? " has" : "s have"} no delegate-seat number. Saving the election date is not enough. Open Election → Electoral College → Electoral structure and allocate seats, then try opening again.`,
+      error: "Election 2 cannot open until the Electoral College Register is generated from verified Election 1 results and authorised.",
     };
   }
+  void election2;
 
   await writeStore((store) => {
-    store.election.stage = "VOTING";
-    store.election.openedAt = new Date().toISOString();
+    const openedAt = new Date().toISOString();
+    const active = contextElection(store);
+    store.elections = store.elections.map((item) =>
+      item.id === active.id ? { ...item, stage: "VOTING", openedAt } : item,
+    );
+    syncLegacyElection(store);
     return store;
   });
 
@@ -440,21 +455,8 @@ export async function authorizeElectionClosing(): Promise<ActionResult> {
     return { ok: false, error: "Re-authentication is required.", needsReauth: true };
   }
 
-  await writeStore((store) => {
-    store.election.stage = "CLOSED";
-    store.election.closedAt = new Date().toISOString();
-    return store;
-  });
-
-  await appendAudit({
-    actorWorkId: gate.session.workId,
-    actorName: gate.session.fullName,
-    action: "authorize_election_closing",
-    detail: "Authorized closing of voting. Results pending authorization.",
-    highRisk: true,
-  });
-  revalidatePath("/", "layout");
-  return { ok: true };
+  const { closeElectionWide } = await import("@/lib/actions/election");
+  return closeElectionWide({ closingNote: "Closed from the Commission dashboard.", exception: false });
 }
 
 export async function authorizeResults(): Promise<ActionResult> {

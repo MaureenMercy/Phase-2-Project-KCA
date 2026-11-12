@@ -1,17 +1,18 @@
-import { AddDelegateCandidateForm } from "@/components/commission/AddDelegateCandidateForm";
-import { AddLeadershipCandidateForm } from "@/components/commission/AddLeadershipCandidateForm";
-import { CandidateDecision } from "@/components/commission/CandidateDecision";
-import { CandidatePhotoUpload } from "@/components/commission/CandidatePhotoUpload";
-import { ModuleSubnav, PageHeader } from "@/components/commission/PageHeader";
-import { courseOptions } from "@/lib/courses";
-import { CABINET_CONTESTS, resolveUnits, unitLabel } from "@/lib/electoral";
-import { formatDateTime } from "@/lib/format";
+import { ActionButton } from "@/components/commission/ActionButton";
+import { ModuleSubnav, PageHeader, StatusPill } from "@/components/commission/PageHeader";
+import {
+  lockCandidateConfiguration,
+  sendCandidateVerification,
+  setApplicationVetting,
+  setCandidateParticipation,
+} from "@/lib/actions/applications";
 import { overlayCandidatePhotos } from "@/lib/ops-overlay";
 import { isAllowedNow } from "@/lib/permissions";
+import { ELECTION_1_ID, ELECTION_2_ID } from "@/lib/seed-electorate";
 import { requireAuthorizedSession } from "@/lib/session";
 import { readStore } from "@/lib/store";
 
-export const metadata = { title: "Candidates" };
+export const metadata = { title: "Candidate management" };
 export const dynamic = "force-dynamic";
 
 export default async function CandidatesPage({
@@ -22,147 +23,147 @@ export default async function CandidatesPage({
   const session = await requireAuthorizedSession();
   const store = await readStore();
   const { kind: rawKind } = await searchParams;
-  const kind = rawKind === "delegates" ? "delegates" : "leadership";
+  const kind = rawKind === "council" ? "council" : rawKind === "pool" ? "pool" : "delegates";
   const canDecide = isAllowedNow(session.role!, "approve_candidates", store.election.stage);
-  const addReason = "Adding candidates is a Commission nomination power at this election stage.";
-  const candidates = await overlayCandidatePhotos(store.candidates);
-  const delegates = await overlayCandidatePhotos(store.delegateCandidates);
-  const units = resolveUnits(store);
-  const campuses = store.campuses.filter((campus) => campus.status === "active").map((campus) => campus.name);
+  const canLock = isAllowedNow(session.role!, "lock_candidate_list", store.election.stage);
+  const applications = await overlayCandidatePhotos(
+    store.candidateApplications.filter((item) =>
+      kind === "council" ? item.electionKind === "COUNCIL" : item.electionKind === "DELEGATE",
+    ),
+  );
+  const pool = store.candidateApplications.filter((item) => item.vettingStatus === "APPROVED");
 
   return (
     <div className="space-y-6">
-      <PageHeader eyebrow="Candidate management" title="Candidates">
-        Add more Leadership (Cabinet) candidates and more Election 1 delegate candidates here.
-        New names are placed on the matching ballot as soon as you add them.
+      <PageHeader eyebrow="Candidate management" title="Applications, vetting and participation">
+        Vetting asks whether a person is approved to be a candidate. Election configuration asks which approved
+        candidate participates in which election. Those are separate decisions. Campus Commissioners may view
+        records but cannot add an unapproved candidate to a ballot.
       </PageHeader>
       <ModuleSubnav
-        current={kind === "delegates" ? "/commission/candidates?kind=delegates" : "/commission/candidates?kind=leadership"}
+        current={
+          kind === "council"
+            ? "/commission/candidates?kind=council"
+            : kind === "pool"
+              ? "/commission/candidates?kind=pool"
+              : "/commission/candidates"
+        }
         items={[
-          { href: "/commission/candidates?kind=leadership", label: "Leadership" },
-          { href: "/commission/candidates?kind=delegates", label: "Delegates" },
-          { href: "/commission/election/election-1?tab=candidates", label: "Election 1 list" },
-          { href: "/commission/election/leadership", label: "Cabinet ballot" },
+          { href: "/commission/candidates", label: "Delegate applications" },
+          { href: "/commission/candidates?kind=council", label: "Council applications" },
+          { href: "/commission/candidates?kind=pool", label: "Approved pool" },
+          { href: "/candidate", label: "Candidate Portal" },
         ]}
       />
 
-      {kind === "leadership" ? (
+      {kind === "pool" ? (
+        <section className="rounded-2xl border border-navy/10 bg-white/90 p-6">
+          <h2 className="font-serif text-2xl text-navy">{pool.length} approved candidates</h2>
+          <ul className="mt-4 grid gap-3 md:grid-cols-2">
+            {pool.map((item) => (
+              <li key={item.id} className="rounded-xl bg-cream/70 p-3">
+                <p className="font-semibold text-navy">{item.fullName}</p>
+                <p className="text-xs text-navy/55">
+                  {item.studentId} · {item.electionKind} · {item.positionLabel} · participation {item.participationStatus}
+                </p>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : (
         <>
-          <AddLeadershipCandidateForm
-            contests={CABINET_CONTESTS.map((contest) => ({
-              id: contest.id,
-              title: contest.title,
-              kind: contest.kind,
-            }))}
-            campuses={campuses}
-            canAdd={canDecide}
-            disabledReason={addReason}
-          />
-          <div className="overflow-hidden rounded-2xl border border-navy/10 bg-white/90">
+          <div className="flex flex-wrap gap-3">
+            <ActionButton
+              label={`Lock ${kind === "council" ? "Election 2" : "Election 1"} candidate list`}
+              run={() => lockCandidateConfiguration(kind === "council" ? ELECTION_2_ID : ELECTION_1_ID)}
+              disabled={!canLock}
+              disabledReason="Locking the candidate configuration is reserved for authorised Commission leadership."
+            />
+          </div>
+          <div className="overflow-x-auto rounded-2xl border border-navy/10 bg-white/90">
             <table className="w-full text-left text-sm">
               <thead className="bg-navy text-[11px] tracking-[0.14em] text-gold uppercase">
                 <tr>
                   <th className="px-4 py-3">Candidate</th>
                   <th className="px-4 py-3">Position</th>
-                  <th className="px-4 py-3">Ticket</th>
-                  <th className="px-4 py-3">Status</th>
-                  <th className="px-4 py-3">Portrait</th>
-                  <th className="px-4 py-3">Action</th>
+                  <th className="px-4 py-3">Vetting</th>
+                  <th className="px-4 py-3">Participation</th>
+                  <th className="px-4 py-3">Verification</th>
+                  <th className="px-4 py-3">Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {candidates.map((candidate) => (
-                  <tr key={candidate.id} className="border-t border-navy/10">
-                    <td className="px-4 py-4">
+                {applications.map((item) => (
+                  <tr key={item.id} className="border-t border-navy/10 align-top">
+                    <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
-                        {candidate.photo ? (
-                          <img src={candidate.photo} alt="" className="h-10 w-10 rounded-full object-cover" />
-                        ) : null}
+                        {item.photo ? <img src={item.photo} alt="" className="h-10 w-10 rounded-full object-cover" /> : null}
                         <span>
-                          <span className="block font-semibold text-navy">{candidate.fullName}</span>
-                          <span className="text-xs text-navy/50">{candidate.campus}</span>
-                          {candidate.runningMateName ? (
-                            <span className="block text-xs text-navy/45">Running mate: {candidate.runningMateName}</span>
+                          <span className="block font-semibold text-navy">{item.fullName}</span>
+                          <span className="text-xs text-navy/50">{item.studentId}</span>
+                          {item.runningMateName ? (
+                            <span className="block text-xs text-navy/45">Running mate: {item.runningMateName}</span>
                           ) : null}
                         </span>
                       </div>
                     </td>
-                    <td className="px-4 py-4">{candidate.position}</td>
-                    <td className="px-4 py-4">{candidate.ticket}</td>
-                    <td className="px-4 py-4 capitalize">
-                      {candidate.status}
-                      {candidate.reviewedBy ? (
-                        <span className="block text-xs text-navy/45">
-                          {candidate.reviewedBy} · {formatDateTime(candidate.reviewedAt ?? null)}
-                        </span>
-                      ) : null}
+                    <td className="px-4 py-3">{item.positionLabel}</td>
+                    <td className="px-4 py-3">
+                      <StatusPill tone={item.vettingStatus === "APPROVED" ? "ok" : item.vettingStatus === "REJECTED" ? "danger" : "warn"}>
+                        {item.vettingStatus}
+                      </StatusPill>
                     </td>
-                    <td className="px-4 py-4">
-                      <CandidatePhotoUpload candidateId={candidate.id} kind="leadership" disabled={!canDecide} />
-                    </td>
-                    <td className="px-4 py-4">
-                      {candidate.status === "pending" ? (
-                        <CandidateDecision
-                          candidateId={candidate.id}
-                          disabled={!canDecide}
-                          disabledReason="Candidate approval is not available at this election stage."
-                        />
+                    <td className="px-4 py-3">{item.participationStatus}</td>
+                    <td className="px-4 py-3">{item.verificationStatus.replaceAll("_", " ")}</td>
+                    <td className="px-4 py-3">
+                      {canDecide ? (
+                        <div className="flex flex-col gap-2">
+                          {item.vettingStatus === "PENDING" ? (
+                            <>
+                              <ActionButton
+                                label="Approve vetting"
+                                run={() =>
+                                  setApplicationVetting({
+                                    id: item.id,
+                                    vettingStatus: "APPROVED",
+                                    notes: "Mock authorised vetting decision.",
+                                  })
+                                }
+                              />
+                              <ActionButton
+                                label="Reject"
+                                run={() =>
+                                  setApplicationVetting({
+                                    id: item.id,
+                                    vettingStatus: "REJECTED",
+                                    notes: "Mock rejection.",
+                                  })
+                                }
+                              />
+                            </>
+                          ) : null}
+                          {item.vettingStatus === "APPROVED" ? (
+                            <ActionButton
+                              label={item.participationStatus === "SELECTED" ? "Remove from election" : "Select for election"}
+                              run={() =>
+                                setCandidateParticipation({
+                                  id: item.id,
+                                  participationStatus:
+                                    item.participationStatus === "SELECTED" ? "NOT_SELECTED" : "SELECTED",
+                                })
+                              }
+                            />
+                          ) : null}
+                          <ActionButton label="Send verification" run={() => sendCandidateVerification(item.id)} />
+                        </div>
                       ) : (
-                        <span className="text-xs text-navy/40">Recorded</span>
+                        <span className="text-xs text-navy/40">View only</span>
                       )}
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
-          </div>
-        </>
-      ) : (
-        <>
-          <AddDelegateCandidateForm
-            courses={courseOptions()}
-            canAdd={canDecide}
-            disabledReason={addReason}
-          />
-          <div className="space-y-4">
-            {units.map((unit) => {
-              const mapped = delegates.filter(
-                (candidate) =>
-                  candidate.status === "active" &&
-                  candidate.campusId === unit.campusId &&
-                  candidate.schoolId === unit.schoolId &&
-                  (candidate.departmentId ?? null) === (unit.departmentId ?? null),
-              );
-              return (
-                <article key={unit.id} className="rounded-2xl border border-navy/10 bg-white/90 p-5">
-                  <h3 className="font-serif text-xl text-navy">{unitLabel(unit)}</h3>
-                  <p className="text-xs text-navy/50">{mapped.length} delegate candidate{mapped.length === 1 ? "" : "s"}</p>
-                  <ul className="mt-3 grid gap-3 md:grid-cols-2">
-                    {mapped.map((candidate) => (
-                      <li key={candidate.id} className="flex items-center gap-3 rounded-xl bg-cream/70 p-3">
-                        <img src={candidate.photo} alt="" className="h-12 w-12 rounded-full object-cover" />
-                        <span className="min-w-0 flex-1">
-                          <span className="block font-semibold text-navy">{candidate.fullName}</span>
-                          <span className="text-xs text-navy/50">
-                            {candidate.studentId} · {candidate.approvalStatus}
-                          </span>
-                          <div className="mt-2">
-                            <CandidatePhotoUpload
-                              candidateId={candidate.id}
-                              kind="delegate"
-                              disabled={!canDecide}
-                            />
-                          </div>
-                        </span>
-                      </li>
-                    ))}
-                    {mapped.length === 0 ? (
-                      <li className="text-sm text-navy/50">No delegate candidates mapped to this unit yet.</li>
-                    ) : null}
-                  </ul>
-                </article>
-              );
-            })}
           </div>
         </>
       )}

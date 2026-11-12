@@ -2,6 +2,9 @@
 
 import { revalidatePath } from "next/cache";
 import { generateElection1Ballot, unitForStudent } from "@/lib/electoral";
+import { election1 } from "@/lib/elections";
+import { ELECTION_1_ID } from "@/lib/seed-electorate";
+import { election1VotingBlock, incrementStationVotes, newReceiptReference } from "@/lib/voting-gate";
 import { clearElectorSession, saveElectorSession } from "@/lib/elector-session";
 import { appendAudit, readStore, writeStore } from "@/lib/store";
 import type { ActionResult } from "@/lib/actions/auth";
@@ -23,10 +26,12 @@ export async function studentElectorLogin(input: {
   if (!access.ok) return { ok: false, error: access.error };
 
   const store = await overlayPersistedVotes(await readStore());
-  if (store.election.emergencyStatus === "PAUSED") {
-    return { ok: false, error: "Voting is paused by the Electoral Commission." };
-  }
-  if (store.election.stage !== "VOTING" || store.election.contest !== "ELECTION_1_DELEGATE") {
+  const studentPreview = store.studentElectors.find(
+    (item) => normalizeStudentId(item.studentId) === normalizeStudentId(input.studentId),
+  );
+  const block = election1VotingBlock(store, studentPreview?.campusId ?? "");
+  if (block && studentPreview) return { ok: false, error: block };
+  if (election1(store).stage !== "VOTING") {
     return { ok: false, error: "Election 1 voting is not open." };
   }
 
@@ -44,7 +49,7 @@ export async function studentElectorLogin(input: {
   if (student.eligibilityStatus !== "eligible") {
     return { ok: false, error: "This student is not eligible for Election 1." };
   }
-  if (student.voterStatus === "voted") {
+  if (student.voterStatus === "voted" || student.election1VotingStatus === "voted") {
     return { ok: false, error: "This student has already voted. A second ballot cannot be issued." };
   }
   const unit = unitForStudent(store, student);
@@ -65,7 +70,7 @@ export async function studentElectorLogin(input: {
     electorId: student.studentId,
     registrationNumber: student.studentId,
     fullName: student.fullName,
-    electionId: store.election.id,
+    electionId: ELECTION_1_ID,
     lastActivityAt: Date.now(),
   });
   return { ok: true, next: "/elector/ballot" };
@@ -81,17 +86,20 @@ export async function castElection1Vote(candidateIds: string[]): Promise<ActionR
   const store = await overlayPersistedVotes(await readStore());
   const student = store.studentElectors.find((item) => item.studentId === session.electorId);
   if (!student) return { ok: false, error: "Elector record not found." };
-  if (student.voterStatus === "voted") {
+  if (student.voterStatus === "voted" || student.election1VotingStatus === "voted") {
     return { ok: false, error: "This student has already voted." };
   }
+
+  const stationBlock = election1VotingBlock(store, student.campusId);
+  if (stationBlock) return { ok: false, error: stationBlock };
 
   const ballot = generateElection1Ballot(store, student);
   if ("error" in ballot) return { ok: false, error: ballot.error };
   if (!ballot.seatsConfigured || ballot.seats === null) {
     return { ok: false, error: "This electoral contest cannot open without a configured seat allocation." };
   }
-  if (candidateIds.length === 0 || candidateIds.length > ballot.seats) {
-    return { ok: false, error: `Select up to ${ballot.seats} candidate${ballot.seats === 1 ? "" : "s"} from your electoral unit.` };
+  if (candidateIds.length !== 1) {
+    return { ok: false, error: "Select exactly one candidate. The three delegate seats are determined at tallying, including the gender-representation rule." };
   }
   const allowed = new Set(ballot.candidates.map((item) => item.id));
   if (candidateIds.some((id) => !allowed.has(id))) {
@@ -105,13 +113,16 @@ export async function castElection1Vote(candidateIds: string[]): Promise<ActionR
   });
   if (!access.ok) return { ok: false, error: access.error };
 
+  const receipt = newReceiptReference();
   await writeStore((current) => {
     current.delegateVotes.push({
       id: `dv-${crypto.randomUUID()}`,
-      electionId: current.election.id,
+      electionId: ELECTION_1_ID,
       studentId: student.studentId,
       unitId: ballot.unit.id,
+      candidateId: candidateIds[0],
       candidateIds,
+      receiptReference: receipt,
       castAt: new Date().toISOString(),
     });
     current.delegateCandidates = current.delegateCandidates.map((candidate) =>
@@ -120,12 +131,11 @@ export async function castElection1Vote(candidateIds: string[]): Promise<ActionR
         : candidate,
     );
     current.studentElectors = current.studentElectors.map((item) =>
-      item.studentId === student.studentId ? { ...item, voterStatus: "voted" } : item,
+      item.studentId === student.studentId
+        ? { ...item, voterStatus: "voted", election1VotingStatus: "voted" }
+        : item,
     );
-    const station = current.pollingStations.find((item) => item.campusId === ballot.unit.campusId);
-    if (station && station.status === "OPEN") {
-      station.votesCast += 1;
-    }
+    incrementStationVotes(current, ballot.unit.campusId, ELECTION_1_ID);
     return current;
   });
 

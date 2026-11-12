@@ -30,7 +30,8 @@ export default async function LegalPage() {
                 <p className="font-mono text-xs text-gold">{item.reference}</p>
                 <p className="text-sm text-navy">{item.description}</p>
                 <p className="text-xs text-navy/45">
-                  {item.reportedByName} · {formatDateTime(item.recordedAt)} · {item.evidence.length} evidence file(s)
+                  {item.reporterKind === "agent" ? "Agent report" : "Commissioner report"} · {item.reportedByName} ·{" "}
+                  {formatDateTime(item.recordedAt)} · {item.evidence.length} evidence file(s)
                 </p>
               </li>
             ))}
