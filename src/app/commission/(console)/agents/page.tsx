@@ -1,4 +1,5 @@
 import { ActionButton } from "@/components/commission/ActionButton";
+import { AgentPolicyForm, AssignStationForm } from "@/components/commission/AgentPolicyForm";
 import { ModuleSubnav, PageHeader, StatusPill } from "@/components/commission/PageHeader";
 import { decideAgentAccreditation, recordAgentAttendance } from "@/lib/actions/agents";
 import { isAllowedNow } from "@/lib/permissions";
@@ -35,11 +36,13 @@ export default async function AgentsPage({
         current={`/commission/agents${tab === "register" ? "" : `?tab=${tab}`}`}
         items={[
           { href: "/commission/agents", label: "Agent register" },
+          { href: "/commission/agents?tab=invitations", label: "Invitations" },
           { href: "/commission/agents?tab=attendance", label: "Attendance" },
           { href: "/commission/agents?tab=observations", label: "Observations" },
           { href: "/agent", label: "Agent Portal" },
         ]}
       />
+      <AgentPolicyForm max={store.agentPolicy.maxAgentsPerCandidate} />
 
       {tab === "register" ? (
         <div className="overflow-x-auto rounded-2xl border border-navy/10 bg-white/90">
@@ -72,18 +75,47 @@ export default async function AgentsPage({
                     </StatusPill>
                   </td>
                   <td className="px-4 py-3">
-                    {canAccredit && agent.accreditationStatus === "PENDING" ? (
+                    {canAccredit ? (
                       <div className="flex flex-col gap-2">
-                        <ActionButton
-                          label="Accredit"
-                          run={decideAgentAccreditation}
-                          args={{ agentId: agent.id, decision: "ACCREDITED" }}
-                        />
-                        <ActionButton
-                          label="Decline"
-                          run={decideAgentAccreditation}
-                          args={{ agentId: agent.id, decision: "DECLINED" }}
-                        />
+                        {agent.accreditationStatus === "PENDING" ? (
+                          <>
+                            <ActionButton
+                              label="Accredit"
+                              run={decideAgentAccreditation}
+                              args={{ agentId: agent.id, decision: "ACCREDITED" }}
+                            />
+                            <ActionButton
+                              label="Decline"
+                              run={decideAgentAccreditation}
+                              args={{ agentId: agent.id, decision: "DECLINED" }}
+                            />
+                          </>
+                        ) : null}
+                        {agent.accreditationStatus === "ACCREDITED" ? (
+                          <>
+                            <ActionButton
+                              label="Suspend"
+                              run={decideAgentAccreditation}
+                              args={{ agentId: agent.id, decision: "SUSPENDED" }}
+                            />
+                            <ActionButton
+                              label="Revoke"
+                              run={decideAgentAccreditation}
+                              args={{ agentId: agent.id, decision: "REVOKED" }}
+                            />
+                            <AssignStationForm
+                              agentId={agent.id}
+                              stations={store.pollingStations.map((station) => ({ id: station.id, name: station.name }))}
+                            />
+                          </>
+                        ) : null}
+                        {agent.accreditationStatus === "SUSPENDED" ? (
+                          <ActionButton
+                            label="Restore"
+                            run={decideAgentAccreditation}
+                            args={{ agentId: agent.id, decision: "ACCREDITED" }}
+                          />
+                        ) : null}
                       </div>
                     ) : canAttend && agent.accreditationStatus === "ACCREDITED" ? (
                       <div className="flex flex-col gap-2">
@@ -107,6 +139,16 @@ export default async function AgentsPage({
             </tbody>
           </table>
         </div>
+      ) : null}
+
+      {tab === "invitations" ? (
+        <ul className="rounded-2xl border border-navy/10 bg-white/90 p-5 text-sm">
+          {store.agentInvitations.map((item) => (
+            <li key={item.id} className="border-b border-navy/10 py-3">
+              <span className="font-mono">{item.reference}</span> · {item.invitedFullName} invited by {item.candidateName} · {item.status}
+            </li>
+          ))}
+        </ul>
       ) : null}
 
       {tab === "attendance" ? (

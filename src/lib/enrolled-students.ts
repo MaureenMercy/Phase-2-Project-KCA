@@ -1,12 +1,13 @@
 import type { EnrolledStudentRecord } from "@/lib/ops-client";
 import { ELECTION_1_ID } from "@/lib/seed-electorate";
 import { electoralUnitId } from "@/lib/seed-electorate";
+import { attachMockIdentity } from "@/lib/student-identity";
 import { normalizeStudentId } from "@/lib/student-auth";
 import type { AppStore, StudentElector, StudentElectoralMapping } from "@/lib/types";
 
 export function enrolledToStudent(row: EnrolledStudentRecord): StudentElector {
   const now = row.enrolledAt || new Date().toISOString();
-  return {
+  return attachMockIdentity({
     id: `st-enroll-${row.studentId.replaceAll("/", "-")}`,
     studentId: row.studentId,
     fullName: row.fullName,
@@ -37,7 +38,7 @@ export function enrolledToStudent(row: EnrolledStudentRecord): StudentElector {
     },
     createdAt: now,
     updatedAt: now,
-  };
+  });
 }
 
 export function enrolledToMapping(row: EnrolledStudentRecord): StudentElectoralMapping {
