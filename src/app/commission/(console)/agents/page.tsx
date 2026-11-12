@@ -76,17 +76,27 @@ export default async function AgentsPage({
                       <div className="flex flex-col gap-2">
                         <ActionButton
                           label="Accredit"
-                          run={() => decideAgentAccreditation({ agentId: agent.id, decision: "ACCREDITED" })}
+                          run={decideAgentAccreditation}
+                          args={{ agentId: agent.id, decision: "ACCREDITED" }}
                         />
                         <ActionButton
                           label="Decline"
-                          run={() => decideAgentAccreditation({ agentId: agent.id, decision: "DECLINED" })}
+                          run={decideAgentAccreditation}
+                          args={{ agentId: agent.id, decision: "DECLINED" }}
                         />
                       </div>
                     ) : canAttend && agent.accreditationStatus === "ACCREDITED" ? (
                       <div className="flex flex-col gap-2">
-                        <ActionButton label="Check in" run={() => recordAgentAttendance({ agentId: agent.id, action: "checkin" })} />
-                        <ActionButton label="Check out" run={() => recordAgentAttendance({ agentId: agent.id, action: "checkout" })} />
+                        <ActionButton
+                          label="Check in"
+                          run={recordAgentAttendance}
+                          args={{ agentId: agent.id, action: "checkin" }}
+                        />
+                        <ActionButton
+                          label="Check out"
+                          run={recordAgentAttendance}
+                          args={{ agentId: agent.id, action: "checkout" }}
+                        />
                       </div>
                     ) : (
                       <span className="text-xs text-navy/40">View</span>

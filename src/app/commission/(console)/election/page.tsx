@@ -143,7 +143,7 @@ export default async function ElectionOverviewPage() {
           </p>
           <div className="mt-4 flex flex-wrap gap-3">
             <ActionButton label="Generate Election 1 totals" run={finalizeElection1Results} />
-            <ActionButton label="Advance results workflow" run={() => advanceResultsWorkflow(ELECTION_1_ID)} />
+            <ActionButton label="Advance results workflow" run={advanceResultsWorkflow} args={ELECTION_1_ID} />
             <ActionButton label="Generate Electoral College Register" run={generateElectoralCollege} />
             <ActionButton label="Approve register for Election 2" run={verifyElectoralCollege} />
           </div>
@@ -156,7 +156,7 @@ export default async function ElectionOverviewPage() {
           <p className="mt-2 text-sm text-navy/65">
             Separate from Election 1. No manual Add Elector path. Joint President/Vice President ticket is one selection.
           </p>
-          <ActionButton label="Advance Election 2 results" run={() => advanceResultsWorkflow(ELECTION_2_ID)} />
+          <ActionButton label="Advance Election 2 results" run={advanceResultsWorkflow} args={ELECTION_2_ID} />
         </section>
       ) : null}
 

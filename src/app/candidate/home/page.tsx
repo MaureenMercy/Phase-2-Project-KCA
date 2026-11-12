@@ -33,7 +33,7 @@ export default async function CandidateHomePage() {
             </p>
             {item.verificationStatus === "SENT" ? (
               <div className="mt-3">
-                <ActionButton label="Confirm ballot appearance" run={() => confirmCandidateVerification(item.id)} />
+                <ActionButton label="Confirm ballot appearance" run={confirmCandidateVerification} args={item.id} />
               </div>
             ) : null}
           </article>

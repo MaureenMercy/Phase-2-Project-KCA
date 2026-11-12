@@ -220,33 +220,30 @@ export default async function VotersPage({
                         <div className="flex flex-col gap-2">
                           <ActionButton
                             label="Request more info"
-                            run={() =>
-                              decideVoterException({
-                                id: item.id,
-                                status: "MORE_INFO",
-                                decisionNote: "Further verification required. Eligibility not independently granted.",
-                              })
-                            }
+                            run={decideVoterException}
+                            args={{
+                              id: item.id,
+                              status: "MORE_INFO",
+                              decisionNote: "Further verification required. Eligibility not independently granted.",
+                            }}
                           />
                           <ActionButton
                             label="Approve exception"
-                            run={() =>
-                              decideVoterException({
-                                id: item.id,
-                                status: "APPROVED",
-                                decisionNote: "Mock authorised review outcome.",
-                              })
-                            }
+                            run={decideVoterException}
+                            args={{
+                              id: item.id,
+                              status: "APPROVED",
+                              decisionNote: "Mock authorised review outcome.",
+                            }}
                           />
                           <ActionButton
                             label="Reject"
-                            run={() =>
-                              decideVoterException({
-                                id: item.id,
-                                status: "REJECTED",
-                                decisionNote: "Mock authorised rejection.",
-                              })
-                            }
+                            run={decideVoterException}
+                            args={{
+                              id: item.id,
+                              status: "REJECTED",
+                              decisionNote: "Mock authorised rejection.",
+                            }}
                           />
                         </div>
                       ) : (

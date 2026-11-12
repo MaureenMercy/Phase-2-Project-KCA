@@ -75,7 +75,8 @@ export default async function CandidatesPage({
           <div className="flex flex-wrap gap-3">
             <ActionButton
               label={`Lock ${kind === "council" ? "Election 2" : "Election 1"} candidate list`}
-              run={() => lockCandidateConfiguration(kind === "council" ? ELECTION_2_ID : ELECTION_1_ID)}
+              run={lockCandidateConfiguration}
+              args={kind === "council" ? ELECTION_2_ID : ELECTION_1_ID}
               disabled={!canLock}
               disabledReason="Locking the candidate configuration is reserved for authorised Commission leadership."
             />
@@ -122,39 +123,36 @@ export default async function CandidatesPage({
                             <>
                               <ActionButton
                                 label="Approve vetting"
-                                run={() =>
-                                  setApplicationVetting({
-                                    id: item.id,
-                                    vettingStatus: "APPROVED",
-                                    notes: "Mock authorised vetting decision.",
-                                  })
-                                }
+                                run={setApplicationVetting}
+                                args={{
+                                  id: item.id,
+                                  vettingStatus: "APPROVED",
+                                  notes: "Mock authorised vetting decision.",
+                                }}
                               />
                               <ActionButton
                                 label="Reject"
-                                run={() =>
-                                  setApplicationVetting({
-                                    id: item.id,
-                                    vettingStatus: "REJECTED",
-                                    notes: "Mock rejection.",
-                                  })
-                                }
+                                run={setApplicationVetting}
+                                args={{
+                                  id: item.id,
+                                  vettingStatus: "REJECTED",
+                                  notes: "Mock rejection.",
+                                }}
                               />
                             </>
                           ) : null}
                           {item.vettingStatus === "APPROVED" ? (
                             <ActionButton
                               label={item.participationStatus === "SELECTED" ? "Remove from election" : "Select for election"}
-                              run={() =>
-                                setCandidateParticipation({
-                                  id: item.id,
-                                  participationStatus:
-                                    item.participationStatus === "SELECTED" ? "NOT_SELECTED" : "SELECTED",
-                                })
-                              }
+                              run={setCandidateParticipation}
+                              args={{
+                                id: item.id,
+                                participationStatus:
+                                  item.participationStatus === "SELECTED" ? "NOT_SELECTED" : "SELECTED",
+                              }}
                             />
                           ) : null}
-                          <ActionButton label="Send verification" run={() => sendCandidateVerification(item.id)} />
+                          <ActionButton label="Send verification" run={sendCandidateVerification} args={item.id} />
                         </div>
                       ) : (
                         <span className="text-xs text-navy/40">View only</span>
