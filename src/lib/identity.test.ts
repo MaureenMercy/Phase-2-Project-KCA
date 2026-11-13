@@ -1,8 +1,6 @@
 import { describe, expect, it } from "vitest";
+import { decryptNationalId, encryptNationalId, hashNationalId } from "@/lib/identity-crypto";
 import {
-  decryptNationalId,
-  encryptNationalId,
-  hashNationalId,
   maskNationalId,
   maskPhone,
   matchStudentIdentity,
@@ -19,11 +17,11 @@ describe("student identity privacy", () => {
     expect(encrypted).not.toContain("32401212");
     expect(decryptNationalId(encrypted)).toBe("32401212");
     expect(hashNationalId("3240 1212")).toBe(hashNationalId("32401212"));
-    expect(maskNationalId("1212")).toBe("••••••1212");
+    expect(maskNationalId("1212")).toBe("••••1212");
   });
 
   it("masks phone numbers in ordinary views", () => {
-    expect(maskPhone(mockStudentPhone("24/01212"))).toMatch(/^07\d{2}••••\d{2}$/);
+    expect(maskPhone(mockStudentPhone("24/01212"))).toMatch(/^07••••\d{4}$/);
   });
 
   it("matches a seeded student only when registration number, National ID and phone agree", () => {
@@ -43,7 +41,7 @@ describe("student identity privacy", () => {
       }),
     ).toBeNull();
     const view = publicIdentityView(store, matched!);
-    expect(view.nationalIdMasked).toBe(`••••••${normalizeNationalId(mockStudentNationalId(studentId)).slice(-4)}`);
+    expect(view.nationalIdMasked).toBe(`••••${normalizeNationalId(mockStudentNationalId(studentId)).slice(-4)}`);
     expect(view.nationalIdMasked).not.toContain(mockStudentNationalId(studentId));
   });
 });

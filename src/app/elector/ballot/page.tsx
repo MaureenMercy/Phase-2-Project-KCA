@@ -23,6 +23,9 @@ export default async function StudentBallotPage() {
     <BallotFrame title="SAKU Election 2026" subtitle="Election 1 — Delegate Election">
       <StudentBallotForm
         unitLabel={unitLabel(ballot.unit)}
+        campusName={ballot.unit.campusName}
+        schoolName={ballot.unit.schoolName}
+        departmentName={ballot.unit.departmentName}
         seats={ballot.seats}
         candidates={candidates}
       />

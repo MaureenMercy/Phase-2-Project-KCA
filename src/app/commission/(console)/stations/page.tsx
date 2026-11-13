@@ -1,5 +1,6 @@
 import { StationConsole } from "@/components/commission/StationConsole";
 import { PageHeader, StatusPill } from "@/components/commission/PageHeader";
+import { contextElection, stationStateFor } from "@/lib/elections";
 import { memberDirectory } from "@/lib/format";
 import { isAllowedNow, ROLE_LABELS } from "@/lib/permissions";
 import { COMMISSION_MEMBERS } from "@/lib/seed";
@@ -14,24 +15,37 @@ export default async function StationsPage() {
   const session = await requireAuthorizedSession();
   const store = await readStore();
   const members = memberDirectory();
-  const canAssign = isAllowedNow(session.role!, "assign_polling_stations", store.election.stage);
-  const canOperate = isAllowedNow(session.role!, "station_operations", store.election.stage);
+  const active = contextElection(store);
+  const canAssign = isAllowedNow(session.role!, "assign_polling_stations", active.stage);
+  const canOperate = isAllowedNow(session.role!, "station_operations", active.stage);
   const mine = store.pollingStations.find((station) => session.pollingStationIds?.includes(station.id));
+  const displayStation = mine
+    ? {
+        ...mine,
+        ...(stationStateFor(store, mine.id, active.id) ?? {}),
+        name: mine.name,
+        campus: mine.campus,
+        campusId: mine.campusId,
+        id: mine.id,
+      }
+    : null;
 
   return (
     <div className="space-y-8">
       <PageHeader eyebrow="Electoral units" title="Polling stations & assignments">
         Commission administration assigns who goes where. The assigned
-        commissioner administers what happens at that station. Chair and Vice
-        Chair do not sit as clerks at every campus.
+        commissioner administers what happens at that station for the active
+        election only. Chair and Vice Chair do not sit as clerks at every campus.
       </PageHeader>
 
-      {mine ? <StationConsole station={mine} canOperate={canOperate} /> : null}
+      {displayStation ? <StationConsole station={displayStation} canOperate={canOperate} /> : null}
 
       <section className="grid gap-4 md:grid-cols-2">
         {store.pollingStations.map((station) => {
           const assigned = store.assignments.filter((item) => item.stationId === station.id && item.active);
           const people = assigned.map((item) => members.find((member) => member.id === item.memberId)).filter(Boolean);
+          const state = stationStateFor(store, station.id, active.id);
+          const status = state?.status ?? station.status;
           return (
             <article key={station.id} className="rounded-2xl border border-navy/10 bg-white/90 p-5">
               <div className="flex items-start justify-between gap-3">
@@ -39,11 +53,13 @@ export default async function StationsPage() {
                   <p className="font-mono text-xs text-gold">{station.code}</p>
                   <h2 className="font-serif text-2xl text-navy">{station.name}</h2>
                 </div>
-                <StatusPill tone={station.status === "OPEN" ? "ok" : station.status === "CLOSED" ? "navy" : "warn"}>
-                  {station.status.replaceAll("_", " ")}
+                <StatusPill tone={status === "OPEN" ? "ok" : status === "CLOSED" ? "navy" : "warn"}>
+                  {status.replaceAll("_", " ")}
                 </StatusPill>
               </div>
-              <p className="mt-2 text-sm text-navy/60">Votes cast: {station.votesCast}</p>
+              <p className="mt-2 text-sm text-navy/60">
+                {active.shortName} votes cast: {state?.votesCast ?? 0}
+              </p>
               <ul className="mt-3 text-sm">
                 {people.map((member) => (
                   <li key={member!.id}>

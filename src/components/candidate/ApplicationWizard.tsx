@@ -23,7 +23,7 @@ import {
 } from "@/lib/candidate-portal";
 import type { PublicStudentIdentity } from "@/lib/identity";
 import type {
-  CandidateApplication,
+  CandidatePortalApplication,
   CandidateApplicationType,
   PortalConfig,
 } from "@/lib/types";
@@ -36,7 +36,7 @@ export function ApplicationWizard({
   schools,
   departments,
 }: {
-  application: CandidateApplication;
+  application: CandidatePortalApplication;
   identity: PublicStudentIdentity;
   config: PortalConfig;
   campuses: Array<{ id: string; name: string }>;

@@ -14,6 +14,9 @@ export function BallotFrame({
   return (
     <main className="ballot-desk min-h-screen bg-[#f7f7f8] px-4 py-10 text-navy">
       <div className="mx-auto w-full max-w-xl">
+        <p className="mb-4 rounded-2xl bg-gold/25 px-4 py-2 text-center text-[11px] font-semibold tracking-[0.16em] text-navy uppercase">
+          DEMO MODE — MOCK DATA ONLY
+        </p>
         {preview ? (
           <p className="mb-6 rounded-2xl bg-[#D0B216]/25 px-4 py-3 text-center text-sm text-navy">
             Commission preview. This is the desk a voter or elector will see. Nothing on this screen is saved.{" "}

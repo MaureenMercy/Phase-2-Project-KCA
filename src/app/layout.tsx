@@ -17,14 +17,14 @@ const cormorant = Cormorant_Garamond({
 
 export const metadata: Metadata = {
   title: {
-    default: "SAKU Election System",
-    template: "%s · SAKU Election System",
+    default: "ORBIS — SAKU Election Platform",
+    template: "%s · ORBIS",
   },
   description:
     "Secure electronic election management for the Students Association of KCA University.",
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html
       lang="en"

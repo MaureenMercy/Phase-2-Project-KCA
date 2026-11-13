@@ -5,19 +5,20 @@ import { useRouter } from "next/navigation";
 import { ReauthModal } from "@/components/commission/SessionGuard";
 import type { ActionResult } from "@/lib/actions/auth";
 
-export function ActionButton({
-  label,
-  tone = "gold",
-  disabled,
-  disabledReason,
-  run,
-}: {
+type CommonProps = {
   label: string;
   tone?: "gold" | "navy" | "danger";
   disabled?: boolean;
   disabledReason?: string;
-  run: () => Promise<ActionResult>;
-}) {
+};
+
+type ActionButtonProps<T> = CommonProps &
+  ([T] extends [void]
+    ? { run: () => Promise<ActionResult>; args?: undefined }
+    : { run: (input: T) => Promise<ActionResult>; args: T });
+
+export function ActionButton<T = void>(props: ActionButtonProps<T>) {
+  const { label, tone = "gold", disabled, disabledReason, run, args } = props;
   const router = useRouter();
   const [pending, setPending] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -28,7 +29,10 @@ export function ActionButton({
     setMessage(null);
     let result: ActionResult;
     try {
-      result = await run();
+      result =
+        args === undefined
+          ? await (run as () => Promise<ActionResult>)()
+          : await (run as (input: T) => Promise<ActionResult>)(args as T);
     } catch {
       setPending(false);
       setMessage("The request did not reach the server. Refresh the page and try again.");

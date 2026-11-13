@@ -1,12 +1,7 @@
 import type { EnrolledStudentRecord } from "@/lib/ops-client";
-import {
-  encryptNationalId,
-  hashNationalId,
-  last4NationalId,
-  mockStudentNationalId,
-  mockStudentPhone,
-} from "@/lib/identity";
-import { ELECTION_ID } from "@/lib/seed";
+import { last4, mockNationalId, mockPhone } from "@/lib/identity";
+import { encryptNationalId, hashNationalId } from "@/lib/identity-crypto";
+import { ELECTION_1_ID, electoralUnitId } from "@/lib/seed-electorate";
 import { normalizeStudentId } from "@/lib/student-auth";
 import type { AppStore, StudentElector, StudentElectoralMapping, StudentIdentity } from "@/lib/types";
 
@@ -23,8 +18,24 @@ export function enrolledToStudent(row: EnrolledStudentRecord): StudentElector {
     programId: null,
     eligibilityStatus: "eligible",
     eligibilitySource: "operator_enrollment",
+    gender: "UNSPECIFIED",
+    election1Eligibility: "eligible",
+    election1VotingStatus: "not_voted",
+    electedDelegateStatus: "not_applicable",
+    electoralCollegeEligibility: "not_applicable",
+    election2Eligibility: "not_applicable",
+    election2VotingStatus: "not_applicable",
+    verificationStatus: "verified",
     courseLabel: row.courseLabel,
     voterStatus: "not_voted",
+    accessibility: {
+      declared: false,
+      categories: [],
+      accommodations: [],
+      notes: "",
+      updatedAt: null,
+      consentToShareOperationally: false,
+    },
     createdAt: now,
     updatedAt: now,
   };
@@ -34,10 +45,21 @@ export function enrolledToMapping(row: EnrolledStudentRecord): StudentElectoralM
   const now = row.enrolledAt || new Date().toISOString();
   return {
     studentId: row.studentId,
-    electionId: ELECTION_ID,
+    electionId: ELECTION_1_ID,
+    electoralUnitId: electoralUnitId({
+      campusId: row.campusId,
+      schoolId: row.schoolId,
+      departmentId: row.departmentId,
+      unitKind:
+        row.campusId === "campus-ruaraka"
+          ? "DEPARTMENT"
+          : row.campusId === "campus-western"
+            ? "SCHOOL"
+            : "CAMPUS_WIDE",
+    }),
     campusId: row.campusId,
-    schoolId: row.schoolId,
-    departmentId: row.departmentId,
+    schoolId: row.campusId === "campus-town" || row.campusId === "campus-kitengela" ? null : row.schoolId,
+    departmentId: row.campusId === "campus-ruaraka" ? row.departmentId : null,
     programId: null,
     eligibilityStatus: "eligible",
     eligibilitySource: "operator_enrollment",
@@ -48,12 +70,12 @@ export function enrolledToMapping(row: EnrolledStudentRecord): StudentElectoralM
 
 function enrolledToIdentity(row: EnrolledStudentRecord): StudentIdentity {
   const now = row.enrolledAt || new Date().toISOString();
-  const nationalId = mockStudentNationalId(row.studentId);
+  const nationalId = mockNationalId(row.studentId);
   return {
     id: `sid-enroll-${row.studentId.replaceAll("/", "-")}`,
     studentId: row.studentId,
     fullName: row.fullName,
-    phoneNumber: mockStudentPhone(row.studentId),
+    phoneNumber: mockPhone(row.studentId),
     campusId: row.campusId,
     schoolId: row.schoolId,
     departmentId: row.departmentId,
@@ -61,7 +83,7 @@ function enrolledToIdentity(row: EnrolledStudentRecord): StudentIdentity {
     programmeLabel: row.courseLabel,
     nationalIdHash: hashNationalId(nationalId),
     nationalIdEncrypted: encryptNationalId(nationalId),
-    nationalIdLast4: last4NationalId(nationalId),
+    nationalIdLast4: last4(nationalId),
     recordSource: "operator_enrollment",
     createdAt: now,
     updatedAt: now,

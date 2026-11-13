@@ -6,6 +6,7 @@ import { CABINET_CONTESTS } from "@/lib/electoral";
 import { formatDateTime } from "@/lib/format";
 import { isAllowedNow } from "@/lib/permissions";
 import { opsAnalytics } from "@/lib/ops-client";
+import { contextElection, liveTotalsHidden } from "@/lib/elections";
 import { overlayPersistedVotes } from "@/lib/ops-overlay";
 import { requireAuthorizedSession } from "@/lib/session";
 import { readStore } from "@/lib/store";
@@ -16,8 +17,9 @@ export const dynamic = "force-dynamic";
 export default async function ElectionResultsPage() {
   const session = await requireAuthorizedSession();
   const store = await overlayPersistedVotes(await readStore());
-  const canView = store.election.stage === "CLOSED" || store.election.stage === "CERTIFIED";
-  const canAuthorize = isAllowedNow(session.role!, "authorize_results", store.election.stage);
+  const active = contextElection(store);
+  const canView = !liveTotalsHidden(active);
+  const canAuthorize = isAllowedNow(session.role!, "authorize_results", active.stage);
   const analytics = canView ? await opsAnalytics() : null;
 
   const cabinetTotals = CABINET_CONTESTS.map((contest) => {
@@ -87,8 +89,8 @@ export default async function ElectionResultsPage() {
 
       <section className="rounded-2xl border border-navy/10 bg-white/90 p-6">
         <p className="text-xs text-navy/50">
-          Authorized by {store.election.resultsAuthorizedBy ?? "—"} on{" "}
-          {formatDateTime(store.election.resultsAuthorizedAt)}
+          Authorized by {active.resultsAuthorizedBy ?? "—"} on{" "}
+          {formatDateTime(active.resultsAuthorizedAt)}
         </p>
         <div className="mt-4">
           <ActionButton

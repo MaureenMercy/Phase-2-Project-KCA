@@ -5,6 +5,7 @@ import path from "node:path";
 import { revalidatePath } from "next/cache";
 import type { ActionResult } from "@/lib/actions/auth";
 import { assertPermission, assignedStationId } from "@/lib/guard";
+import { evidenceKind } from "@/lib/incidents";
 import { appendAudit, writeStore } from "@/lib/store";
 import type { IncidentRecord } from "@/lib/types";
 
@@ -32,6 +33,7 @@ export async function recordIncident(input: {
     reportedByWorkId: gate.session.workId,
     reportedByName: gate.session.fullName,
     reporterRole: gate.session.role!,
+    reporterKind: "commission",
     category: input.category,
     description: input.description.trim(),
     occurredAt: input.occurredAt || new Date().toISOString(),
@@ -103,6 +105,7 @@ export async function uploadIncidentEvidence(
                 mimeType: file.type || "application/octet-stream",
                 storedName,
                 reference: evidenceRef,
+                kind: evidenceKind(file.type, file.name),
                 uploadedAt: new Date().toISOString(),
                 uploadedBy: gate.session.fullName,
               },
@@ -126,9 +129,84 @@ export async function uploadIncidentEvidence(
   return { ok: true };
 }
 
+function stationScopeError(session: { role?: string; pollingStationIds?: string[] }, stationId: string) {
+  if (session.role !== "COMMISSIONER") return null;
+  const mine = assignedStationId(session);
+  if (!mine || mine !== stationId) {
+    return "You may only act on incidents from your assigned polling station.";
+  }
+  return null;
+}
+
+export async function classifyIncident(input: {
+  incidentId: string;
+  status: "reviewed" | "closed";
+  note: string;
+}): Promise<ActionResult> {
+  const gate = await assertPermission("view_incidents");
+  if ("error" in gate && gate.error) return { ok: false, error: gate.error };
+  const incident = gate.store.incidents.find((item) => item.id === input.incidentId);
+  if (!incident) return { ok: false, error: "Incident not found." };
+  const scoped = stationScopeError(gate.session, incident.stationId);
+  if (scoped) return { ok: false, error: scoped };
+
+  await writeStore((store) => {
+    store.incidents = store.incidents.map((item) =>
+      item.id === input.incidentId
+        ? { ...item, status: input.status, escalationNote: input.note.trim() || item.escalationNote }
+        : item,
+    );
+    return store;
+  });
+  await appendAudit({
+    actorWorkId: gate.session.workId,
+    actorName: gate.session.fullName,
+    action: "classify_incident",
+    detail: `Classified ${incident.reference} as ${input.status}.`,
+    highRisk: false,
+    entity: "incident",
+    entityId: incident.id,
+    stationId: incident.stationId,
+  });
+  revalidatePath("/commission/incidents");
+  return { ok: true };
+}
+
+export async function linkIncidents(input: { fromId: string; toId: string }): Promise<ActionResult> {
+  const gate = await assertPermission("view_incidents");
+  if ("error" in gate && gate.error) return { ok: false, error: gate.error };
+  const from = gate.store.incidents.find((item) => item.id === input.fromId);
+  const to = gate.store.incidents.find((item) => item.id === input.toId);
+  if (!from || !to) return { ok: false, error: "Both incident records must exist." };
+  const scoped = stationScopeError(gate.session, from.stationId) || stationScopeError(gate.session, to.stationId);
+  if (scoped) return { ok: false, error: scoped };
+
+  await writeStore((store) => {
+    store.incidents = store.incidents.map((item) =>
+      item.id === from.id ? { ...item, linkedIncidentId: to.linkedIncidentId ?? to.id } : item,
+    );
+    return store;
+  });
+  await appendAudit({
+    actorWorkId: gate.session.workId,
+    actorName: gate.session.fullName,
+    action: "link_incidents",
+    detail: `Linked ${from.reference} to ${to.reference}. Original reports are preserved.`,
+    highRisk: false,
+    entity: "incident",
+    entityId: from.id,
+  });
+  revalidatePath("/commission/incidents");
+  return { ok: true };
+}
+
 export async function escalateIncident(incidentId: string, note: string): Promise<ActionResult> {
   const gate = await assertPermission("view_incidents");
   if ("error" in gate && gate.error) return { ok: false, error: gate.error };
+  const incident = gate.store.incidents.find((item) => item.id === incidentId);
+  if (!incident) return { ok: false, error: "Incident not found." };
+  const scoped = stationScopeError(gate.session, incident.stationId);
+  if (scoped) return { ok: false, error: scoped };
 
   await writeStore((store) => {
     store.incidents = store.incidents.map((item) =>

@@ -1,11 +1,11 @@
-import { academicLabels, campusDisplayName } from "@/lib/identity";
+import { academicLabels, campusDisplayName, maskNationalId } from "@/lib/identity";
 import { resolveUnits } from "@/lib/electoral";
 import { normalizeStudentId } from "@/lib/student-auth";
 import type {
   AgentNomination,
   AppStore,
   ApplicationWindow,
-  CandidateApplication,
+  CandidatePortalApplication,
   CandidateApplicationType,
   CandidateDeclarations,
   CouncilPositionConfig,
@@ -39,7 +39,7 @@ export function electionTypeLabel(type: CandidateApplicationType | null) {
   return "Not selected";
 }
 
-export function statusExplanation(status: CandidateApplication["status"]) {
+export function statusExplanation(status: CandidatePortalApplication["status"]) {
   switch (status) {
     case "Draft":
       return "Saved on this portal. It has not been sent to the Electoral Commission.";
@@ -58,7 +58,7 @@ export function statusExplanation(status: CandidateApplication["status"]) {
   }
 }
 
-export function ballotParticipationLabel(status: CandidateApplication["ballotParticipationStatus"]) {
+export function ballotParticipationLabel(status: CandidatePortalApplication["ballotParticipationStatus"]) {
   switch (status) {
     case "configured_on_ballot":
       return "Configured on an official ballot";
@@ -237,7 +237,7 @@ export function jointTicketBlocked(config: PortalConfig, position: CouncilPositi
 
 export function requiredDocumentsFor(
   config: PortalConfig,
-  application: Pick<CandidateApplication, "applicationType" | "councilPositionId">,
+  application: Pick<CandidatePortalApplication, "applicationType" | "councilPositionId">,
 ) {
   if (application.applicationType === "DELEGATE") {
     return config.delegateRequiredDocuments.filter((item) => item.required);
@@ -249,19 +249,19 @@ export function requiredDocumentsFor(
   return [];
 }
 
-export function documentPresent(application: CandidateApplication, kind: string) {
+export function documentPresent(application: CandidatePortalApplication, kind: string) {
   return application.documents.some((item) => item.kind === kind && item.dataUrl);
 }
 
-export function isLockedStatus(status: CandidateApplication["status"]) {
+export function isLockedStatus(status: CandidatePortalApplication["status"]) {
   return status !== "Draft" && status !== "Awaiting Additional Information";
 }
 
-export function canEditApplication(status: CandidateApplication["status"]) {
+export function canEditApplication(status: CandidatePortalApplication["status"]) {
   return status === "Draft" || status === "Awaiting Additional Information";
 }
 
-export function isSubmittedOrLater(status: CandidateApplication["status"]) {
+export function isSubmittedOrLater(status: CandidatePortalApplication["status"]) {
   return status !== "Draft";
 }
 
@@ -271,7 +271,7 @@ export function activeApplicationOfType(
   type: CandidateApplicationType,
 ) {
   const key = normalizeStudentId(studentId);
-  return store.candidateApplications.find(
+  return store.candidatePortalApplications.find(
     (item) =>
       normalizeStudentId(item.studentId) === key &&
       item.applicationType === type &&
@@ -281,7 +281,7 @@ export function activeApplicationOfType(
 
 export function applicationsForStudent(store: AppStore, studentId: string) {
   const key = normalizeStudentId(studentId);
-  return store.candidateApplications
+  return store.candidatePortalApplications
     .filter((item) => normalizeStudentId(item.studentId) === key)
     .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
 }
@@ -294,7 +294,7 @@ export function nominationsForApplication(store: AppStore, applicationId: string
 
 export function nextApplicationReference(store: AppStore, year: number) {
   const used = new Set(
-    store.candidateApplications.map((item) => item.reference).filter(Boolean) as string[],
+    store.candidatePortalApplications.map((item) => item.reference).filter(Boolean) as string[],
   );
   for (let attempt = 0; attempt < 50; attempt += 1) {
     const suffix = String(1000 + Math.floor(Math.random() * 9000));
@@ -318,7 +318,7 @@ export type FieldError = { field: string; message: string };
 
 export function validateSubmission(
   store: AppStore,
-  application: CandidateApplication,
+  application: CandidatePortalApplication,
   now = new Date(),
 ): FieldError[] {
   const errors: FieldError[] = [];
@@ -420,7 +420,7 @@ export function validateSubmission(
   return errors;
 }
 
-export function duplicateSubmissionError(application: CandidateApplication) {
+export function duplicateSubmissionError(application: CandidatePortalApplication) {
   if (application.status === "Draft") return null;
   if (application.reference) {
     return `This application has already been submitted. Reference: ${application.reference}. Submitted is not the same as approved.`;
@@ -428,7 +428,7 @@ export function duplicateSubmissionError(application: CandidateApplication) {
   return "This application has already been submitted. Submitted is not the same as approved.";
 }
 
-export function canNominateAgents(application: CandidateApplication) {
+export function canNominateAgents(application: CandidatePortalApplication) {
   return application.status === "Approved" && application.applicationType === "SAKU_COUNCIL";
 }
 
@@ -456,9 +456,9 @@ export function filteredDepartments(store: AppStore, schoolId: string) {
 
 export function snapshotIdentityOntoApplication(
   identity: StudentIdentity,
-  application: CandidateApplication,
+  application: CandidatePortalApplication,
   college: DerivedElectoralCollege,
-): CandidateApplication {
+): CandidatePortalApplication {
   return {
     ...application,
     campusId: identity.campusId,
@@ -471,7 +471,7 @@ export function snapshotIdentityOntoApplication(
 
 export function applicationSummary(
   store: AppStore,
-  application: CandidateApplication,
+  application: CandidatePortalApplication,
   identity: StudentIdentity,
 ) {
   const academic = academicLabels(store, identity);
@@ -479,7 +479,7 @@ export function applicationSummary(
   return {
     studentId: identity.studentId,
     fullName: identity.fullName,
-    nationalIdMasked: `••••••${identity.nationalIdLast4}`,
+    nationalIdMasked: maskNationalId(identity.nationalIdLast4),
     election: electionTypeLabel(application.applicationType),
     ...academic,
     electoralCollege: application.electoralCollege,
@@ -505,7 +505,7 @@ export function emptyApplication(input: {
   electionId: string;
   identity: StudentIdentity;
   now: string;
-}): CandidateApplication {
+}): CandidatePortalApplication {
   return {
     id: input.id,
     reference: null,

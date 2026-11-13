@@ -31,19 +31,17 @@ export default async function VoterBallotPreviewPage() {
     );
   }
 
-  const seats = ballot.seats && ballot.seats > 0 ? ballot.seats : 2;
+  const seats = ballot.seats && ballot.seats > 0 ? ballot.seats : 3;
   const candidates = await overlayCandidatePhotos(ballot.candidates);
 
   return (
     <BallotFrame preview title="SAKU Election 2026" subtitle="Election 1 — Delegate Election">
-      {!ballot.seatsConfigured ? (
-        <p className="mb-4 rounded-2xl bg-white px-4 py-3 text-center text-sm text-navy/70">
-          Seats are not allocated yet, so this preview uses {seats} sample seats for {student.fullName} ({student.studentId}).
-        </p>
-      ) : null}
       <StudentBallotForm
         preview
         unitLabel={unitLabel(ballot.unit)}
+        campusName={ballot.unit.campusName}
+        schoolName={ballot.unit.schoolName}
+        departmentName={ballot.unit.departmentName}
         seats={seats}
         candidates={candidates}
       />

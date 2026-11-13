@@ -16,7 +16,7 @@ export default async function SubmittedPage({
   const { id } = await params;
   const session = await requireCandidateSession();
   const store = await readStore();
-  const application = store.candidateApplications.find((item) => item.id === id);
+  const application = store.candidatePortalApplications.find((item) => item.id === id);
   if (!application || normalizeStudentId(application.studentId) !== normalizeStudentId(session.studentId)) {
     notFound();
   }

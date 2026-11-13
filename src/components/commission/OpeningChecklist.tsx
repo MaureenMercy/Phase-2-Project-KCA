@@ -19,24 +19,26 @@ export function OpeningChecklist({
       <p className="text-[10px] tracking-[0.18em] text-gold-dim uppercase">
         How to open Election 1
       </p>
-      <h2 className="mt-1 font-serif text-2xl text-navy">Opening is blocked until seats exist</h2>
+      <h2 className="mt-1 font-serif text-2xl text-navy">
+        {ready ? "Election 1 seat allocation is stored" : "Opening is blocked until seats exist"}
+      </h2>
       <p className="mt-2 max-w-3xl text-sm leading-6 text-navy/70">
-        Saving the election name and date does <strong>not</strong> configure Election 1.
-        Every electoral unit must have an explicit delegate-seat number first. Nothing is
-        defaulted to 3.
+        Saving the election name and date does <strong>not</strong> open Election 1.
+        Seat numbers come from the Constitution’s three-representatives-per-college rule applied to
+        the signed academic structure. Unspecified units would remain unconfigured rather than inferred.
       </p>
       <ol className="mt-4 list-decimal space-y-2 pl-5 text-sm text-navy/75">
         <li>
-          Allocate seats below, or open{" "}
+          Review{" "}
           <Link className="font-semibold text-navy underline" href="/commission/election/election-1?tab=structure">
-            Election → Electoral College → Electoral structure
+            Election 1 electoral structure
           </Link>
           .
         </li>
-        <li>Type a number (for the prototype, <strong>2</strong> is enough) and allocate remaining units.</li>
+        <li>Approve the voter register if required, then authorize opening as Chair or Vice Chair.</li>
         <li>
-          Return here and choose <strong>Authorize opening</strong>. Re-enter password{" "}
-          <code className="rounded bg-cream px-1">KCAU@2026</code> when asked.
+          Assigned campus Commissioners then complete station readiness and the official opening of
+          their own station only.
         </li>
       </ol>
       <ul className="mt-4 space-y-1 text-sm">

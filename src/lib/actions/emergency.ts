@@ -9,6 +9,8 @@ export async function initiateEmergency(input: {
   kind: "PAUSE" | "RESUME";
   reason: string;
   evidenceNote: string;
+  scope?: "STATION" | "ALL";
+  stationIds?: string[];
 }): Promise<ActionResult> {
   const gate = await assertPermission("initiate_emergency");
   if ("error" in gate && gate.error) return { ok: false, error: gate.error };
@@ -29,6 +31,12 @@ export async function initiateEmergency(input: {
     return { ok: false, error: "The election is not paused." };
   }
 
+  const scope = input.scope === "STATION" ? "STATION" : "ALL";
+  const stationIds = scope === "STATION" ? input.stationIds?.filter(Boolean) ?? [] : gate.store.pollingStations.map((item) => item.id);
+  if (scope === "STATION" && stationIds.length === 0) {
+    return { ok: false, error: "Select the affected campus/station. An incident at one campus must not automatically freeze the others." };
+  }
+
   const id = `emg-${crypto.randomUUID()}`;
   await writeStore((store) => {
     store.emergencies = [
@@ -36,6 +44,8 @@ export async function initiateEmergency(input: {
         id,
         electionId: store.election.id,
         kind: input.kind,
+        scope,
+        stationIds,
         initiatedByWorkId: gate.session.workId,
         initiatedByName: gate.session.fullName,
         initiatedAt: new Date().toISOString(),
@@ -82,8 +92,24 @@ export async function authorizeEmergency(id: string): Promise<ActionResult> {
   }
 
   const nextStatus = action.kind === "PAUSE" ? "PAUSED" : "RUNNING";
+  const freezeAll = action.scope === "ALL" || action.stationIds.length >= 4;
   await writeStore((store) => {
-    store.election.emergencyStatus = nextStatus;
+    if (freezeAll) {
+      store.election.emergencyStatus = nextStatus;
+      store.elections = store.elections.map((item) =>
+        item.id === store.election.id ? { ...item, emergencyStatus: nextStatus } : item,
+      );
+    }
+    store.pollingStations = store.pollingStations.map((station) =>
+      action.stationIds.includes(station.id)
+        ? {
+            ...station,
+            frozen: action.kind === "PAUSE",
+            frozenAt: action.kind === "PAUSE" ? new Date().toISOString() : null,
+            frozenReason: action.kind === "PAUSE" ? action.reason : null,
+          }
+        : station,
+    );
     store.election.updatedAt = new Date().toISOString();
     store.emergencies = store.emergencies.map((item) =>
       item.id === id

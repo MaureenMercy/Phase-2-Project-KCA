@@ -4,7 +4,6 @@ import { ActionButton } from "@/components/commission/ActionButton";
 import { OpeningChecklist } from "@/components/commission/OpeningChecklist";
 import { PageHeader, StatCard, StatusPill } from "@/components/commission/PageHeader";
 import {
-  authorizeElectionClosing,
   authorizeElectionOpening,
   authorizeResults,
 } from "@/lib/actions/auth";
@@ -12,6 +11,7 @@ import { resolveUnits, validateElection1Readiness } from "@/lib/electoral";
 import { formatDateTime, formatNumber } from "@/lib/format";
 import { CONTEST_LABELS, isAllowedNow, ROLE_LABELS, STAGE_LABELS, roleHasPermission } from "@/lib/permissions";
 import { overlayPersistedVotes } from "@/lib/ops-overlay";
+import { contextElection, liveTotalsHidden } from "@/lib/elections";
 import { requireAuthorizedSession } from "@/lib/session";
 import { readStore } from "@/lib/store";
 
@@ -22,26 +22,31 @@ export default async function DashboardPage() {
   const session = await requireAuthorizedSession();
   const store = await overlayPersistedVotes(await readStore());
   const role = session.role!;
-  const pendingCandidates = store.candidates.filter((item) => item.status === "pending");
+  const active = contextElection(store);
+  const pendingCandidates = store.candidateApplications.filter((item) => item.vettingStatus === "PENDING");
   const assigned = store.pollingStations.filter((station) =>
     session.pollingStationIds?.includes(station.id),
   );
   const units = resolveUnits(store);
   const unconfigured = units.filter((unit) => unit.delegateSeats === null).length;
-  const voted = store.studentElectors.filter((item) => item.voterStatus === "voted").length;
+  const voted =
+    active.contest === "ELECTION_1_DELEGATE"
+      ? store.studentElectors.filter((item) => item.election1VotingStatus === "voted").length
+      : store.electoralCollege.entries.filter((item) => item.electorStatus === "voted").length;
   const seatIssues = validateElection1Readiness(store).filter((issue) => issue.code === "seats");
-  const canSeats = isAllowedNow(role, "configure_delegate_seats", store.election.stage);
+  const canSeats = isAllowedNow(role, "configure_delegate_seats", active.stage);
+  const hideTotals = liveTotalsHidden(active);
 
   return (
     <div className="space-y-8">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <PageHeader eyebrow="Electoral Commission" title={`Welcome, ${session.shortName}`}>
-          {ROLE_LABELS[role]} · {store.election.name} · {CONTEST_LABELS[store.election.contest]}
+          {ROLE_LABELS[role]} · {active.name} · {CONTEST_LABELS[active.contest]}
         </PageHeader>
         <div className="rounded-2xl border border-gold bg-white/90 px-4 py-3 text-right">
           <p className="text-[10px] tracking-[0.18em] text-navy/40 uppercase">Lifecycle</p>
-          <p className="font-serif text-xl text-navy">{STAGE_LABELS[store.election.stage]}</p>
-          {store.election.emergencyStatus === "PAUSED" ? (
+          <p className="font-serif text-xl text-navy">{STAGE_LABELS[active.stage]}</p>
+          {active.emergencyStatus === "PAUSED" ? (
             <StatusPill tone="danger">Paused</StatusPill>
           ) : null}
         </div>
@@ -51,7 +56,7 @@ export default async function DashboardPage() {
         <StatCard
           label="Eligible Election 1 electors"
           value={formatNumber(store.studentElectors.length)}
-          hint={`${voted} have voted · mock first-year register`}
+          hint={`${voted} have voted · ${hideTotals ? "no live candidate totals" : "results workflow available"}`}
         />
         <StatCard
           label="Electoral units"
@@ -61,7 +66,7 @@ export default async function DashboardPage() {
         <StatCard
           label="Pending nominations"
           value={String(pendingCandidates.length)}
-          hint="Leadership files awaiting a decision"
+          hint="Applications awaiting a vetting decision"
         />
         <StatCard
           label={assigned.length ? "Assigned station" : "Commission role"}
@@ -89,7 +94,7 @@ export default async function DashboardPage() {
         </section>
       ) : null}
 
-      {store.election.stage === "REGISTRATION" ? (
+      {active.stage === "REGISTRATION" ? (
         <OpeningChecklist
           unconfigured={unconfigured}
           registerApproved={store.voterRegister.status === "approved"}
@@ -114,7 +119,7 @@ export default async function DashboardPage() {
         </Link>
       </section>
 
-      <AuthorityPanel role={role} stage={store.election.stage} />
+      <AuthorityPanel role={role} stage={active.stage} />
 
       <section className="rounded-2xl border border-navy/10 bg-white/90 p-6">
         <h2 className="font-serif text-2xl text-navy">High-risk electoral actions</h2>
@@ -128,7 +133,7 @@ export default async function DashboardPage() {
             <ActionButton
               label="Authorize opening"
               run={authorizeElectionOpening}
-              disabled={!isAllowedNow(role, "authorize_election_opening", store.election.stage)}
+              disabled={!isAllowedNow(role, "authorize_election_opening", active.stage)}
               disabledReason="Opening can only be authorized during the registration period."
             />
           ) : (
@@ -137,19 +142,18 @@ export default async function DashboardPage() {
             </p>
           )}
           {roleHasPermission(role, "authorize_election_closing") ? (
-            <ActionButton
-              label="Authorize closing"
-              tone="navy"
-              run={authorizeElectionClosing}
-              disabled={!isAllowedNow(role, "authorize_election_closing", store.election.stage)}
-              disabledReason="Closing can only be authorized while voting is in progress, by the Chair or Vice Chair."
-            />
+            <Link
+              className="rounded-sm bg-navy px-4 py-2 text-xs font-bold tracking-[0.16em] text-cream uppercase"
+              href="/commission/election"
+            >
+              Open election-wide closing
+            </Link>
           ) : null}
           {roleHasPermission(role, "authorize_results") ? (
             <ActionButton
               label="Authorize official results"
               run={authorizeResults}
-              disabled={!isAllowedNow(role, "authorize_results", store.election.stage)}
+              disabled={!isAllowedNow(role, "authorize_results", active.stage)}
               disabledReason="Results can be authorized only after voting has closed."
             />
           ) : (
@@ -161,17 +165,17 @@ export default async function DashboardPage() {
         <dl className="mt-6 grid gap-3 text-sm text-navy/60 md:grid-cols-3">
           <div>
             <dt className="text-[10px] tracking-[0.16em] uppercase">Opened</dt>
-            <dd>{formatDateTime(store.election.openedAt)}</dd>
+            <dd>{formatDateTime(active.openedAt)}</dd>
           </div>
           <div>
             <dt className="text-[10px] tracking-[0.16em] uppercase">Closed</dt>
-            <dd>{formatDateTime(store.election.closedAt)}</dd>
+            <dd>{formatDateTime(active.closedAt)}</dd>
           </div>
           <div>
             <dt className="text-[10px] tracking-[0.16em] uppercase">Results authorized</dt>
             <dd>
-              {store.election.resultsAuthorizedBy
-                ? `${store.election.resultsAuthorizedBy} · ${formatDateTime(store.election.resultsAuthorizedAt)}`
+              {active.resultsAuthorizedBy
+                ? `${active.resultsAuthorizedBy} · ${formatDateTime(active.resultsAuthorizedAt)}`
                 : "Pending"}
             </dd>
           </div>

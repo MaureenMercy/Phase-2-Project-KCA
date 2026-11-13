@@ -13,7 +13,7 @@ import {
 } from "@/lib/candidate-portal";
 import { mockStudentNationalId } from "@/lib/identity";
 import { createInitialStore } from "@/lib/seed";
-import type { CandidateApplication, StudentIdentity } from "@/lib/types";
+import type { CandidatePortalApplication, StudentIdentity } from "@/lib/types";
 
 const TINY_PHOTO =
   "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
@@ -25,7 +25,7 @@ function identityById(studentId: string) {
   return { store, identity };
 }
 
-function draftFrom(identity: StudentIdentity, store = createInitialStore()): CandidateApplication {
+function draftFrom(identity: StudentIdentity, store = createInitialStore()): CandidatePortalApplication {
   const application = emptyApplication({
     id: "capp-test",
     studentId: identity.studentId,
@@ -224,11 +224,11 @@ describe("agent nomination rules", () => {
     const application = {
       status: "Submitted",
       applicationType: "SAKU_COUNCIL",
-    } as CandidateApplication;
+    } as CandidatePortalApplication;
     expect(canNominateAgents(application)).toBe(false);
     expect(canNominateAgents({ ...application, status: "Approved" })).toBe(true);
     expect(
-      canNominateAgents({ status: "Approved", applicationType: "DELEGATE" } as CandidateApplication),
+      canNominateAgents({ status: "Approved", applicationType: "DELEGATE" } as CandidatePortalApplication),
     ).toBe(false);
   });
 
@@ -262,6 +262,6 @@ describe("shared identity", () => {
     const ian = store.studentIdentities.find((item) => item.studentId === "24/01212");
     expect(ian?.nationalIdHash).toBeTruthy();
     expect(ian?.nationalIdEncrypted).not.toContain(mockStudentNationalId("24/01212"));
-    expect(store.candidateApplications[0]?.ballotParticipationStatus).toBe("not_configured");
+    expect(store.candidatePortalApplications[0]?.ballotParticipationStatus).toBe("not_configured");
   });
 });

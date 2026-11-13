@@ -38,7 +38,7 @@ import { issueOtp, peekDemoOtp, verifyOtp } from "@/lib/otp";
 import { appendAudit, readStore, writeStore } from "@/lib/store";
 import { normalizeStudentId } from "@/lib/student-auth";
 import type {
-  CandidateApplication,
+  CandidatePortalApplication,
   CandidateApplicationType,
   CorrectionRequestFieldKey,
   StudentIdentity,
@@ -279,7 +279,7 @@ export async function createOrResumeApplication(
     application.applicationType = applicationType;
     application.currentStep = 3;
     application.electoralCollege = deriveElectoralCollege(current, identity);
-    current.candidateApplications.unshift(application);
+    current.candidatePortalApplications.unshift(application);
     createdId = application.id;
     return current;
   });
@@ -303,7 +303,7 @@ export async function startBlankApplication(): Promise<CandidateActionResult> {
   const identity = identityByStudentId(store, session.studentId);
   if (!identity) return { ok: false, error: "Your student record could not be loaded." };
 
-  const openDraft = store.candidateApplications.find(
+  const openDraft = store.candidatePortalApplications.find(
     (item) =>
       normalizeStudentId(item.studentId) === normalizeStudentId(session.studentId) &&
       item.status === "Draft" &&
@@ -325,7 +325,7 @@ export async function startBlankApplication(): Promise<CandidateActionResult> {
       identity,
       now,
     });
-    current.candidateApplications.unshift(application);
+    current.candidatePortalApplications.unshift(application);
     createdId = application.id;
     return current;
   });
@@ -336,7 +336,7 @@ export async function startBlankApplication(): Promise<CandidateActionResult> {
 async function loadOwnedApplication(applicationId: string) {
   const session = await requireCandidateSession();
   const store = await readStore();
-  const application = store.candidateApplications.find((item) => item.id === applicationId);
+  const application = store.candidatePortalApplications.find((item) => item.id === applicationId);
   if (!application || normalizeStudentId(application.studentId) !== normalizeStudentId(session.studentId)) {
     return { ok: false as const, error: "That application was not found." };
   }
@@ -350,7 +350,7 @@ export async function saveApplicationProgress(input: {
   currentStep?: 1 | 2 | 3 | 4 | 5;
   applicationType?: CandidateApplicationType | null;
   councilPositionId?: string | null;
-  declarations?: Partial<CandidateApplication["declarations"]>;
+  declarations?: Partial<CandidatePortalApplication["declarations"]>;
 }): Promise<CandidateActionResult> {
   const loaded = await loadOwnedApplication(input.applicationId);
   if (!loaded.ok) return { ok: false, error: loaded.error };
@@ -364,7 +364,7 @@ export async function saveApplicationProgress(input: {
   }
 
   await writeStore((store) => {
-    const current = store.candidateApplications.find((item) => item.id === application.id);
+    const current = store.candidatePortalApplications.find((item) => item.id === application.id);
     if (!current) return store;
     if (input.applicationType !== undefined && current.status === "Draft") {
       current.applicationType = input.applicationType;
@@ -454,7 +454,7 @@ export async function uploadApplicationFile(input: {
   };
 
   await writeStore((current) => {
-    const target = current.candidateApplications.find((item) => item.id === application.id);
+    const target = current.candidatePortalApplications.find((item) => item.id === application.id);
     if (!target) return current;
     if (isPhoto) {
       target.photograph = file;
@@ -479,7 +479,7 @@ export async function removeApplicationFile(input: {
     return { ok: false, error: "Files cannot be changed after this application has been submitted." };
   }
   await writeStore((store) => {
-    const target = store.candidateApplications.find((item) => item.id === application.id);
+    const target = store.candidatePortalApplications.find((item) => item.id === application.id);
     if (!target) return store;
     if (input.kind === "photograph") target.photograph = null;
     else target.documents = target.documents.filter((item) => item.kind !== input.kind);
@@ -498,7 +498,7 @@ export async function submitApplication(applicationId: string): Promise<Candidat
   const duplicate = duplicateSubmissionError(application);
   if (duplicate) return { ok: false, error: duplicate };
 
-  const nextApplication: CandidateApplication = {
+  const nextApplication: CandidatePortalApplication = {
     ...application,
     campusId: identity.campusId,
     schoolId: identity.schoolId,
@@ -518,7 +518,7 @@ export async function submitApplication(applicationId: string): Promise<Candidat
   const year = store.election.year;
   let reference = "";
   await writeStore((current) => {
-    const target = current.candidateApplications.find((item) => item.id === application.id);
+    const target = current.candidatePortalApplications.find((item) => item.id === application.id);
     if (!target) return current;
     if (target.status !== "Draft" && target.status !== "Awaiting Additional Information") {
       reference = target.reference ?? "";

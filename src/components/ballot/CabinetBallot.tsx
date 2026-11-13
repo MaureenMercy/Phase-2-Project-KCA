@@ -23,7 +23,11 @@ export function CabinetBallot({
   const activeStep = preview ? localStep : step;
   const activeSelections = preview ? localSelections : selections;
   const contest = CABINET_CONTESTS[Math.min(activeStep, 5)];
-  const options = candidates.filter((candidate) => candidate.contestId === contest.id);
+  const options = candidates.filter((candidate) => {
+    if (candidate.contestId !== contest.id) return false;
+    if (contest.id === "treasurer") return candidate.gender === "F";
+    return true;
+  });
   const selected = activeSelections[contest.id] ?? null;
   const [choice, setChoice] = useState<string | null>(selected);
   const [pending, setPending] = useState(false);
@@ -138,9 +142,9 @@ export function CabinetBallot({
         ) : null}
         <button
           type="button"
-          disabled={pending}
+          disabled={pending || !choice}
           onClick={() => void next()}
-          className="flex-[2] rounded-2xl bg-navy py-4 text-sm font-bold tracking-[0.16em] text-white uppercase"
+          className="flex-[2] rounded-2xl bg-navy py-4 text-sm font-bold tracking-[0.16em] text-white uppercase disabled:opacity-40"
         >
           {activeStep >= 5 ? "Review" : "Next"}
         </button>

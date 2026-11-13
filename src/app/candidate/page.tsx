@@ -46,6 +46,10 @@ export default async function CandidateLandingPage() {
           <Link href="/" className="underline-offset-4 hover:underline">
             Back to SAKU Election System
           </Link>
+          <span className="mx-2">·</span>
+          <Link href="/candidate/home" className="underline-offset-4 hover:underline">
+            Ballot appearance check
+          </Link>
         </p>
       </main>
     </div>

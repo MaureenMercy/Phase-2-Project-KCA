@@ -71,6 +71,36 @@ body {
   appearance: none;
 }
 
+.voter-portal :focus-visible {
+  outline: 3px solid var(--gold);
+  outline-offset: 3px;
+}
+
+.voter-high-contrast {
+  --navy: #000000;
+  --navy-deep: #000000;
+  --navy-mid: #111111;
+  --cream: #ffffff;
+  --ink: #000000;
+}
+
+.voter-high-contrast .voter-portal {
+  background: #ffffff;
+  color: #000000;
+}
+
+.voter-large-text {
+  font-size: 1.125rem;
+}
+
+.voter-large-text button,
+.voter-large-text a,
+.voter-large-text input,
+.voter-large-text select,
+.voter-large-text textarea {
+  min-height: 44px;
+}
+
 @keyframes pipeline-in {
   from {
     opacity: 0;

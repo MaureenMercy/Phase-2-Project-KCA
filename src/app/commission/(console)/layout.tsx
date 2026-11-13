@@ -1,5 +1,7 @@
 import { CommissionShell } from "@/components/commission/CommissionShell";
 import { SessionGuard } from "@/components/commission/SessionGuard";
+import { readElectionContext, stageForContext } from "@/lib/election-context";
+import { contextElection } from "@/lib/elections";
 import { navForPermissions } from "@/lib/nav";
 import { activePermissions } from "@/lib/permissions";
 import { requireAuthorizedSession } from "@/lib/session";
@@ -22,7 +24,9 @@ export default async function ConsoleLayout({
       item.audience === "all" ||
       (session.role && Array.isArray(item.audience) && item.audience.includes(session.role)),
   );
-  const permissions = activePermissions(session.role!, store.election.stage);
+  const electionContext = await readElectionContext(store);
+  const election = contextElection(store);
+  const permissions = activePermissions(session.role!, stageForContext(store, electionContext));
 
   return (
     <CommissionShell
@@ -33,10 +37,11 @@ export default async function ConsoleLayout({
         role: session.role!,
         stationNames: stations.map((station) => station.name),
       }}
-      electionName={store.election.name}
-      stage={store.election.stage}
-      contest={store.election.contest}
-      emergencyPaused={store.election.emergencyStatus === "PAUSED"}
+      electionName={election.name}
+      stage={election.stage}
+      contest={election.contest}
+      emergencyPaused={election.emergencyStatus === "PAUSED"}
+      electionContext={electionContext}
       items={navForPermissions(permissions)}
       notifications={notifications}
     >

@@ -6,6 +6,7 @@ import { cookies } from "next/headers";
 import { ensureDirectorySynced } from "@/lib/directory-db";
 import { mergeEnrolledIntoStore } from "@/lib/enrolled-students";
 import { opsListEnrolled, opsLoadRegistry, opsSaveRegistry } from "@/lib/ops-client";
+import { last4, mockNationalId, mockPhone } from "@/lib/identity";
 import { createInitialStore } from "@/lib/seed";
 import { cookieBaseOptions } from "@/lib/session-crypto";
 import {
@@ -16,8 +17,17 @@ import {
   STATE_COOKIE_COUNT,
   STATE_COOKIE_PREFIX,
 } from "@/lib/store-persist";
-import type { AppStore, AuditEvent } from "@/lib/types";
+import type { AppStore, AuditEvent, CandidatePortalApplication } from "@/lib/types";
 import { STORE_VERSION } from "@/lib/types";
+
+function isPortalApplicationRecord(item: unknown): item is CandidatePortalApplication {
+  return Boolean(
+    item &&
+      typeof item === "object" &&
+      "currentStep" in item &&
+      "ballotParticipationStatus" in item,
+  );
+}
 
 const STORE_PATH = path.join(process.cwd(), "data", "store.json");
 const COOKIE_MAX_AGE = 12 * 60 * 60;
@@ -40,20 +50,37 @@ function migrate(parsed: Partial<AppStore>): AppStore {
       auditLog: parsed.auditLog?.length ? parsed.auditLog : initial.auditLog,
     };
   }
-  return {
-    ...initial,
-    ...parsed,
-    version: STORE_VERSION,
-    studentIdentities: parsed.studentIdentities?.length
-      ? parsed.studentIdentities
-      : initial.studentIdentities,
-    candidateProfiles: parsed.candidateProfiles ?? initial.candidateProfiles,
-    candidateApplications: parsed.candidateApplications ?? initial.candidateApplications,
-    agentNominations: parsed.agentNominations ?? initial.agentNominations,
-    correctionRequests: parsed.correctionRequests ?? initial.correctionRequests,
-    portalNotifications: parsed.portalNotifications ?? initial.portalNotifications,
-    portalConfig: parsed.portalConfig ?? initial.portalConfig,
-  } as AppStore;
+  const merged = { ...initial, ...parsed, version: STORE_VERSION } as AppStore;
+  merged.voterProfiles = parsed.voterProfiles ?? initial.voterProfiles;
+  merged.voterHistory = parsed.voterHistory ?? initial.voterHistory;
+  merged.voterNotifications = parsed.voterNotifications ?? initial.voterNotifications;
+  merged.academicCorrectionRequests = parsed.academicCorrectionRequests ?? initial.academicCorrectionRequests;
+  merged.identityDocumentPolicy = parsed.identityDocumentPolicy ?? initial.identityDocumentPolicy;
+  merged.studentElectors = (parsed.studentElectors ?? initial.studentElectors).map((student) => ({
+    ...student,
+    phoneNumber: student.phoneNumber ?? mockPhone(student.studentId),
+    nationalIdLast4: student.nationalIdLast4 ?? last4(mockNationalId(student.studentId)),
+  }));
+  merged.studentIdentities = parsed.studentIdentities?.length
+    ? parsed.studentIdentities
+    : initial.studentIdentities;
+  merged.candidateProfiles = parsed.candidateProfiles ?? initial.candidateProfiles;
+  const parsedApps = (parsed.candidateApplications ?? []) as unknown[];
+  const portalFromLegacy = parsedApps.filter(isPortalApplicationRecord);
+  const commissionApps = parsedApps.filter((item) => !isPortalApplicationRecord(item));
+  merged.candidatePortalApplications = parsed.candidatePortalApplications?.length
+    ? parsed.candidatePortalApplications
+    : portalFromLegacy.length
+      ? portalFromLegacy
+      : initial.candidatePortalApplications;
+  merged.candidateApplications = commissionApps.length
+    ? (commissionApps as AppStore["candidateApplications"])
+    : initial.candidateApplications;
+  merged.agentNominations = parsed.agentNominations ?? initial.agentNominations;
+  merged.correctionRequests = parsed.correctionRequests ?? initial.correctionRequests;
+  merged.portalNotifications = parsed.portalNotifications ?? initial.portalNotifications;
+  merged.portalConfig = parsed.portalConfig ?? initial.portalConfig;
+  return merged;
 }
 
 function canPersistToDisk() {

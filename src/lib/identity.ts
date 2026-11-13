@@ -1,12 +1,18 @@
-import { createCipheriv, createDecipheriv, createHash, randomBytes } from "node:crypto";
-import { normalizeStudentId } from "@/lib/student-auth";
-import type { AppStore, StudentIdentity } from "@/lib/types";
+import type { AppStore, IdentityDocumentPolicy, StudentIdentity } from "@/lib/types";
 
-const NATIONAL_ID_KEY_MATERIAL = "saku-prototype-national-id-key";
-
-function nationalIdKey() {
-  return createHash("sha256").update(NATIONAL_ID_KEY_MATERIAL).digest();
+function identityKey(studentId: string) {
+  return studentId.trim().toUpperCase().replace(/[\u2215\u2044\uFF0F]/g, "/");
 }
+
+export const DEFAULT_IDENTITY_DOCUMENT_POLICY: IdentityDocumentPolicy = {
+  allowedTypes: [
+    { id: "NATIONAL_ID", label: "Kenyan National ID", enabled: true },
+  ],
+  pendingPolicyNote:
+    "An alternative-document policy has not yet been finalized by the Commission. Only document types enabled in this configuration may be used. Do not assume any other identity document is approved.",
+};
+
+export type { IdentityDocumentPolicy };
 
 export function normalizeNationalId(value: string) {
   return value.replace(/[\s-]/g, "").toUpperCase();
@@ -20,69 +26,63 @@ export function normalizePhone(value: string) {
   return trimmed.replace(/[\s-]/g, "");
 }
 
-export function hashNationalId(value: string) {
-  return createHash("sha256").update(normalizeNationalId(value)).digest("hex");
+export function mockNationalId(studentId: string) {
+  const digits = studentId.replace(/\D/g, "").padStart(7, "0").slice(-7);
+  return `3${digits}`;
 }
 
-export function encryptNationalId(value: string) {
-  const iv = randomBytes(12);
-  const cipher = createCipheriv("aes-256-gcm", nationalIdKey(), iv);
-  const encrypted = Buffer.concat([
-    cipher.update(normalizeNationalId(value), "utf8"),
-    cipher.final(),
-  ]);
-  const tag = cipher.getAuthTag();
-  return [iv, tag, encrypted].map((part) => part.toString("base64url")).join(".");
+export function mockPhone(studentId: string) {
+  const digits = studentId.replace(/\D/g, "").padStart(7, "0").slice(-7);
+  return `071${digits}`;
 }
 
-export function decryptNationalId(payload: string) {
-  const [ivPart, tagPart, dataPart] = payload.split(".");
-  if (!ivPart || !tagPart || !dataPart) return null;
-  try {
-    const decipher = createDecipheriv(
-      "aes-256-gcm",
-      nationalIdKey(),
-      Buffer.from(ivPart, "base64url"),
-    );
-    decipher.setAuthTag(Buffer.from(tagPart, "base64url"));
-    const decrypted = Buffer.concat([
-      decipher.update(Buffer.from(dataPart, "base64url")),
-      decipher.final(),
-    ]);
-    return decrypted.toString("utf8");
-  } catch {
-    return null;
-  }
+export const mockStudentNationalId = mockNationalId;
+export const mockStudentPhone = mockPhone;
+
+export function last4(value: string) {
+  const digits = value.replace(/\D/g, "");
+  return digits.slice(-4).padStart(4, "•");
 }
 
-export function maskNationalId(last4: string) {
-  return `••••••${last4}`;
+export const last4NationalId = last4;
+
+export function maskNationalId(lastFour: string | null | undefined) {
+  if (!lastFour) return "••••••••";
+  return `••••${lastFour.slice(-4)}`;
 }
 
-export function maskPhone(phone: string) {
+export function maskPhone(phone: string | null | undefined) {
+  if (!phone) return "Not recorded";
   const digits = phone.replace(/\D/g, "");
-  if (digits.length < 6) return "••••••••••";
-  return `${digits.slice(0, 4)}••••${digits.slice(-2)}`;
+  if (digits.length < 4) return "••••";
+  return `${digits.slice(0, 2)}••••${digits.slice(-4)}`;
 }
 
-export function mockStudentNationalId(studentId: string) {
-  const digits = studentId.replace(/\D/g, "");
-  return `3${digits}`.slice(0, 8).padEnd(8, "0");
+export function nationalIdMatches(input: {
+  presented: string;
+  cipher?: string | null;
+  studentId: string;
+}) {
+  const presented = normalizeNationalId(input.presented);
+  if (!presented) return false;
+  return presented === mockNationalId(input.studentId);
 }
 
-export function mockStudentPhone(studentId: string) {
-  const digits = studentId.replace(/\D/g, "").padStart(8, "0").slice(-8);
-  return `07${digits}`;
+export function enabledDocumentTypes(policy: IdentityDocumentPolicy = DEFAULT_IDENTITY_DOCUMENT_POLICY) {
+  return policy.allowedTypes.filter((item) => item.enabled);
 }
 
-export function last4NationalId(value: string) {
-  return normalizeNationalId(value).slice(-4);
+export function isDocumentTypeAllowed(
+  typeId: string,
+  policy: IdentityDocumentPolicy = DEFAULT_IDENTITY_DOCUMENT_POLICY,
+) {
+  return enabledDocumentTypes(policy).some((item) => item.id === typeId);
 }
 
 export function identityByStudentId(store: AppStore, studentId: string) {
-  const key = normalizeStudentId(studentId);
+  const key = identityKey(studentId);
   return (
-    store.studentIdentities.find((item) => normalizeStudentId(item.studentId) === key) ?? null
+    store.studentIdentities.find((item) => identityKey(item.studentId) === key) ?? null
   );
 }
 
@@ -92,7 +92,7 @@ export function matchStudentIdentity(
 ): StudentIdentity | null {
   const identity = identityByStudentId(store, input.studentId);
   if (!identity) return null;
-  if (identity.nationalIdHash !== hashNationalId(input.nationalId)) return null;
+  if (!nationalIdMatches({ presented: input.nationalId, studentId: identity.studentId })) return null;
   if (normalizePhone(identity.phoneNumber) !== normalizePhone(input.phone)) return null;
   return identity;
 }

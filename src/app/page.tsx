@@ -20,7 +20,7 @@ export default async function LandingPage() {
         />
 
         <h1 className="mt-8 whitespace-nowrap font-serif text-[clamp(1.4rem,5vw,3rem)] leading-none font-semibold tracking-[0.16em] text-white uppercase">
-          SAKU Election System
+          ORBIS — SAKU Election Platform
         </h1>
 
         <div className="gold-rule mt-8 w-48" />
@@ -45,6 +45,12 @@ export default async function LandingPage() {
           >
             Candidate Portal
           </Link>
+        </div>
+        <div className="mt-6 flex flex-wrap justify-center gap-4 text-xs tracking-[0.16em] text-gold/90 uppercase">
+          <Link href="/voter">Voter Portal</Link>
+          <Link href="/elector">Election 1 desk</Link>
+          <Link href="/vote">Election 2 desk</Link>
+          <Link href="/agent">Agent Portal</Link>
         </div>
 
         <p className="mt-10 text-[11px] tracking-[0.34em] text-cream/55 uppercase">
