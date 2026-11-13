@@ -6,6 +6,7 @@ import { cookies } from "next/headers";
 import { ensureDirectorySynced } from "@/lib/directory-db";
 import { mergeEnrolledIntoStore } from "@/lib/enrolled-students";
 import { opsListEnrolled, opsLoadRegistry, opsSaveRegistry } from "@/lib/ops-client";
+import { last4, mockNationalId, mockPhone } from "@/lib/identity";
 import { createInitialStore } from "@/lib/seed";
 import { cookieBaseOptions } from "@/lib/session-crypto";
 import {
@@ -40,7 +41,18 @@ function migrate(parsed: Partial<AppStore>): AppStore {
       auditLog: parsed.auditLog?.length ? parsed.auditLog : initial.auditLog,
     };
   }
-  return { ...initial, ...parsed, version: STORE_VERSION } as AppStore;
+  const merged = { ...initial, ...parsed, version: STORE_VERSION } as AppStore;
+  merged.voterProfiles = parsed.voterProfiles ?? initial.voterProfiles;
+  merged.voterHistory = parsed.voterHistory ?? initial.voterHistory;
+  merged.voterNotifications = parsed.voterNotifications ?? initial.voterNotifications;
+  merged.academicCorrectionRequests = parsed.academicCorrectionRequests ?? initial.academicCorrectionRequests;
+  merged.identityDocumentPolicy = parsed.identityDocumentPolicy ?? initial.identityDocumentPolicy;
+  merged.studentElectors = (parsed.studentElectors ?? initial.studentElectors).map((student) => ({
+    ...student,
+    phoneNumber: student.phoneNumber ?? mockPhone(student.studentId),
+    nationalIdLast4: student.nationalIdLast4 ?? last4(mockNationalId(student.studentId)),
+  }));
+  return merged;
 }
 
 function canPersistToDisk() {

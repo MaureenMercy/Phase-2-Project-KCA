@@ -16,6 +16,8 @@ export function EmergencyForm({
   isInitiator: boolean;
 }) {
   const [kind, setKind] = useState<"PAUSE" | "RESUME">("PAUSE");
+  const [scope, setScope] = useState<"STATION" | "ALL">("STATION");
+  const [stationId, setStationId] = useState("ps-town");
   const [reason, setReason] = useState("");
   const [evidenceNote, setEvidenceNote] = useState("");
 
@@ -35,6 +37,32 @@ export function EmergencyForm({
             </select>
           </label>
           <label className="block text-sm">
+            Freeze scope
+            <select
+              value={scope}
+              onChange={(event) => setScope(event.target.value as "STATION" | "ALL")}
+              className="mt-1 w-full rounded-xl border border-navy/15 px-3 py-2"
+            >
+              <option value="STATION">Affected campus/station only</option>
+              <option value="ALL">All four campuses</option>
+            </select>
+          </label>
+          {scope === "STATION" ? (
+            <label className="block text-sm">
+              Affected station
+              <select
+                value={stationId}
+                onChange={(event) => setStationId(event.target.value)}
+                className="mt-1 w-full rounded-xl border border-navy/15 px-3 py-2"
+              >
+                <option value="ps-ruaraka">Ruaraka</option>
+                <option value="ps-town">Town</option>
+                <option value="ps-western">Western</option>
+                <option value="ps-kitengela">Kitengela</option>
+              </select>
+            </label>
+          ) : null}
+          <label className="block text-sm">
             Reason
             <textarea value={reason} onChange={(event) => setReason(event.target.value)} rows={3} className="mt-1 w-full rounded-xl border border-navy/15 px-3 py-2" />
           </label>
@@ -46,7 +74,15 @@ export function EmergencyForm({
             label="Initiate emergency action"
             tone="danger"
             disabled={!canInitiate}
-            run={() => initiateEmergency({ kind, reason, evidenceNote })}
+            run={() =>
+              initiateEmergency({
+                kind,
+                reason,
+                evidenceNote,
+                scope,
+                stationIds: scope === "STATION" ? [stationId] : undefined,
+              })
+            }
           />
         </div>
       ) : null}

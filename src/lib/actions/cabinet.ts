@@ -9,6 +9,9 @@ import {
   readElectorSession,
   saveElectorSession,
 } from "@/lib/elector-session";
+import { election2 } from "@/lib/elections";
+import { ELECTION_2_ID } from "@/lib/seed-electorate";
+import { election2VotingBlock, incrementStationVotes, newReceiptReference } from "@/lib/voting-gate";
 import { appendAudit, readStore, writeStore } from "@/lib/store";
 import type { CabinetContestId } from "@/lib/types";
 import { CABINET_CONTEST_IDS } from "@/lib/types";
@@ -31,11 +34,11 @@ export async function requestCabinetOtp(registrationNumber: string): Promise<Act
   if (!access.ok) return { ok: false, error: access.error };
 
   const store = await overlayPersistedVotes(await readStore());
-  if (store.election.emergencyStatus === "PAUSED") {
-    return { ok: false, error: "Voting is paused by the Electoral Commission." };
-  }
   if (store.electoralCollege.status !== "active") {
     return { ok: false, error: "The SAKU Electoral Register is not active. It is derived from finalized Election 1 results." };
+  }
+  if (election2(store).stage !== "VOTING") {
+    return { ok: false, error: "Election 2 voting is not open." };
   }
 
   const elector = store.electoralCollege.entries.find(
@@ -86,11 +89,11 @@ export async function verifyCabinetLogin(input: {
   if (!access.ok) return { ok: false, error: access.error };
 
   const store = await overlayPersistedVotes(await readStore());
-  if (store.election.emergencyStatus === "PAUSED") {
-    return { ok: false, error: "Voting is paused by the Electoral Commission." };
-  }
   if (store.electoralCollege.status !== "active") {
     return { ok: false, error: "The SAKU Electoral Register is not active." };
+  }
+  if (election2(store).stage !== "VOTING") {
+    return { ok: false, error: "Election 2 voting is not open." };
   }
 
   const elector = store.electoralCollege.entries.find(
@@ -219,6 +222,9 @@ export async function submitCabinetVote(): Promise<ActionResult> {
   }
 
   const selections = draft.selections as Record<CabinetContestId, string>;
+  const student = store.studentElectors.find((item) => item.studentId === elector.studentId);
+  const campusBlock = election2VotingBlock(store, student?.campusId ?? elector.campusId);
+  if (campusBlock) return { ok: false, error: campusBlock };
   const access = await assertVotingAccess({
     actor: elector.registrationNumber,
     path: "/vote/review",
@@ -226,12 +232,14 @@ export async function submitCabinetVote(): Promise<ActionResult> {
   });
   if (!access.ok) return { ok: false, error: access.error };
 
+  const receipt = newReceiptReference();
   await writeStore((current) => {
     current.cabinetVotes.push({
       id: `cv-${crypto.randomUUID()}`,
-      electionId: current.election.id,
+      electionId: ELECTION_2_ID,
       electorId: session.electorId,
       selections,
+      receiptReference: receipt,
       submittedAt: new Date().toISOString(),
     });
     current.electoralCollege.entries = current.electoralCollege.entries.map((entry) =>
@@ -247,6 +255,12 @@ export async function submitCabinetVote(): Promise<ActionResult> {
         : entry,
     );
     current.cabinetDrafts = current.cabinetDrafts.filter((item) => item.electorId !== session.electorId);
+    current.studentElectors = current.studentElectors.map((item) =>
+      item.studentId === elector.studentId
+        ? { ...item, election2VotingStatus: "voted" }
+        : item,
+    );
+    incrementStationVotes(current, student?.campusId ?? elector.campusId, ELECTION_2_ID);
     return current;
   });
 
@@ -274,7 +288,7 @@ export async function submitCabinetVote(): Promise<ActionResult> {
     actorWorkId: elector.registrationNumber,
     actorName: elector.fullName,
     action: "cabinet_vote_submitted",
-    detail: "Cabinet ballot submitted. OTP invalidated. Elector marked as voted.",
+    detail: `Council ballot accepted. Receipt ${receipt}. Candidate selections are not recorded on this audit event.`,
     highRisk: false,
     entity: "cabinet_vote",
     entityId: session.electorId,

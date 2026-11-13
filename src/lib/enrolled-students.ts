@@ -1,5 +1,6 @@
 import type { EnrolledStudentRecord } from "@/lib/ops-client";
-import { ELECTION_ID } from "@/lib/seed";
+import { ELECTION_1_ID } from "@/lib/seed-electorate";
+import { electoralUnitId } from "@/lib/seed-electorate";
 import { normalizeStudentId } from "@/lib/student-auth";
 import type { AppStore, StudentElector, StudentElectoralMapping } from "@/lib/types";
 
@@ -16,8 +17,24 @@ export function enrolledToStudent(row: EnrolledStudentRecord): StudentElector {
     programId: null,
     eligibilityStatus: "eligible",
     eligibilitySource: "operator_enrollment",
+    gender: "UNSPECIFIED",
+    election1Eligibility: "eligible",
+    election1VotingStatus: "not_voted",
+    electedDelegateStatus: "not_applicable",
+    electoralCollegeEligibility: "not_applicable",
+    election2Eligibility: "not_applicable",
+    election2VotingStatus: "not_applicable",
+    verificationStatus: "verified",
     courseLabel: row.courseLabel,
     voterStatus: "not_voted",
+    accessibility: {
+      declared: false,
+      categories: [],
+      accommodations: [],
+      notes: "",
+      updatedAt: null,
+      consentToShareOperationally: false,
+    },
     createdAt: now,
     updatedAt: now,
   };
@@ -27,10 +44,21 @@ export function enrolledToMapping(row: EnrolledStudentRecord): StudentElectoralM
   const now = row.enrolledAt || new Date().toISOString();
   return {
     studentId: row.studentId,
-    electionId: ELECTION_ID,
+    electionId: ELECTION_1_ID,
+    electoralUnitId: electoralUnitId({
+      campusId: row.campusId,
+      schoolId: row.schoolId,
+      departmentId: row.departmentId,
+      unitKind:
+        row.campusId === "campus-ruaraka"
+          ? "DEPARTMENT"
+          : row.campusId === "campus-western"
+            ? "SCHOOL"
+            : "CAMPUS_WIDE",
+    }),
     campusId: row.campusId,
-    schoolId: row.schoolId,
-    departmentId: row.departmentId,
+    schoolId: row.campusId === "campus-town" || row.campusId === "campus-kitengela" ? null : row.schoolId,
+    departmentId: row.campusId === "campus-ruaraka" ? row.departmentId : null,
     programId: null,
     eligibilityStatus: "eligible",
     eligibilitySource: "operator_enrollment",

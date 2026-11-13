@@ -5,17 +5,34 @@ import type {
   CabinetCandidate,
   Campus,
   CommissionMember,
-  DelegateCandidate,
   ElectoralDepartment,
   ElectoralUnitConfiguration,
   InstitutionalUser,
   PollingStation,
   Programme,
   School,
-  StudentElector,
-  StudentElectoralMapping,
 } from "@/lib/types";
 import { STORE_VERSION } from "@/lib/types";
+import {
+  CONFIG_VERSION,
+  CYCLE_ID,
+  ELECTION_1_ID,
+  ELECTION_2_ID,
+  SEAT_REVIEW_NOTE,
+  SEAT_SOURCE,
+  buildAgents,
+  buildCouncilApplications,
+  buildDelegateApplications,
+  buildDelegateCandidates,
+  buildIncidents,
+  buildStudentElectors,
+  buildStudentMappings,
+  buildVoterExceptions,
+  buildVoterPortalSeed,
+} from "@/lib/seed-electorate";
+import { DEFAULT_IDENTITY_DOCUMENT_POLICY } from "@/lib/identity";
+
+export { CYCLE_ID, ELECTION_1_ID, ELECTION_2_ID } from "@/lib/seed-electorate";
 
 export { DEMO_ACCOUNTS, DEMO_PASSWORD } from "@/lib/demo-accounts";
 
@@ -24,7 +41,7 @@ const DEMO_PASSWORD_HASH =
 
 const now = "2026-09-18T08:00:00.000Z";
 
-export const ELECTION_ID = "saku-2026";
+export const ELECTION_ID = ELECTION_1_ID;
 
 export const INSTITUTIONAL_DIRECTORY: InstitutionalUser[] = [
   {
@@ -114,7 +131,7 @@ export const COMMISSION_MEMBERS: CommissionMember[] = [
     id: "member-chair",
     userId: "user-chair",
     role: "CHAIR",
-    electionId: ELECTION_ID,
+    electionId: CYCLE_ID,
     pollingStationIds: [],
     active: true,
   },
@@ -122,7 +139,7 @@ export const COMMISSION_MEMBERS: CommissionMember[] = [
     id: "member-vice",
     userId: "user-vice",
     role: "VICE_CHAIR",
-    electionId: ELECTION_ID,
+    electionId: CYCLE_ID,
     pollingStationIds: [],
     active: true,
   },
@@ -130,7 +147,7 @@ export const COMMISSION_MEMBERS: CommissionMember[] = [
     id: "member-sg",
     userId: "user-sg",
     role: "SECRETARY_GENERAL",
-    electionId: ELECTION_ID,
+    electionId: CYCLE_ID,
     pollingStationIds: [],
     active: true,
   },
@@ -138,7 +155,7 @@ export const COMMISSION_MEMBERS: CommissionMember[] = [
     id: "member-004",
     userId: "user-com-ruaraka",
     role: "COMMISSIONER",
-    electionId: ELECTION_ID,
+    electionId: CYCLE_ID,
     pollingStationIds: ["ps-ruaraka"],
     active: true,
   },
@@ -146,7 +163,7 @@ export const COMMISSION_MEMBERS: CommissionMember[] = [
     id: "member-005",
     userId: "user-com-town",
     role: "COMMISSIONER",
-    electionId: ELECTION_ID,
+    electionId: CYCLE_ID,
     pollingStationIds: ["ps-town"],
     active: true,
   },
@@ -154,7 +171,7 @@ export const COMMISSION_MEMBERS: CommissionMember[] = [
     id: "member-006",
     userId: "user-com-kitengela",
     role: "COMMISSIONER",
-    electionId: ELECTION_ID,
+    electionId: CYCLE_ID,
     pollingStationIds: ["ps-kitengela"],
     active: true,
   },
@@ -162,7 +179,7 @@ export const COMMISSION_MEMBERS: CommissionMember[] = [
     id: "member-007",
     userId: "user-com-western",
     role: "COMMISSIONER",
-    electionId: ELECTION_ID,
+    electionId: CYCLE_ID,
     pollingStationIds: ["ps-western"],
     active: true,
   },
@@ -175,10 +192,10 @@ function stamp<T extends { createdAt: string; updatedAt: string }>(
 }
 
 export const CAMPUSES: Campus[] = [
-  stamp({ id: "campus-ruaraka", name: "Ruaraka", code: "RU", status: "active" }),
-  stamp({ id: "campus-western", name: "Western", code: "WE", status: "active" }),
-  stamp({ id: "campus-town", name: "Town", code: "TN", status: "active" }),
-  stamp({ id: "campus-kitengela", name: "Kitengela", code: "KT", status: "active" }),
+  stamp({ id: "campus-ruaraka", name: "Ruaraka", code: "RU", electoralStructure: "DEPARTMENT", status: "active" }),
+  stamp({ id: "campus-western", name: "Western", code: "WE", electoralStructure: "SCHOOL", status: "active" }),
+  stamp({ id: "campus-town", name: "Town", code: "TN", electoralStructure: "CAMPUS_WIDE", status: "active" }),
+  stamp({ id: "campus-kitengela", name: "Kitengela", code: "KT", electoralStructure: "CAMPUS_WIDE", status: "active" }),
 ];
 
 type SchoolSeed = { id: string; campusId: string; name: string; code: string };
@@ -224,186 +241,123 @@ export const DEPARTMENTS: ElectoralDepartment[] = DEPT_SEEDS.map((dept) =>
 
 export const PROGRAMMES: Programme[] = [];
 
-function unitId(campusId: string, schoolId: string, departmentId?: string | null) {
-  return `unit-${[campusId, schoolId, departmentId ?? "school"].join("-")}`;
+function constitutionalSeats(unitId: string): ElectoralUnitConfiguration {
+  return {
+    id: unitId,
+    electionId: ELECTION_1_ID,
+    campusId: "",
+    schoolId: null,
+    departmentId: null,
+    programId: null,
+    unitKind: "DEPARTMENT",
+    delegateSeats: 3,
+    seatStatus: "APPROVED",
+    allocationSource: SEAT_SOURCE,
+    allocationVersion: CONFIG_VERSION,
+    allocationReviewNote: SEAT_REVIEW_NOTE,
+    configurationVersionId: CONFIG_VERSION,
+    status: "active",
+    createdAt: now,
+    updatedAt: now,
+  };
 }
 
 export function createElectoralUnits(electionId: string): ElectoralUnitConfiguration[] {
   const units: ElectoralUnitConfiguration[] = [];
 
-  for (const school of SCHOOLS) {
-    const departments = DEPARTMENTS.filter((dept) => dept.schoolId === school.id);
-    if (departments.length === 0) {
-      units.push(
-        stamp({
-          id: unitId(school.campusId, school.id),
-          electionId,
-          campusId: school.campusId,
-          schoolId: school.id,
-          departmentId: null,
-          programId: null,
-          delegateSeats: null,
-          seatStatus: "UNCONFIGURED",
-          status: "active",
-        }),
-      );
+  for (const campus of CAMPUSES) {
+    if (campus.electoralStructure === "CAMPUS_WIDE") {
+      units.push({
+        ...constitutionalSeats(`unit-${campus.id}-campus`),
+        electionId,
+        campusId: campus.id,
+        schoolId: null,
+        departmentId: null,
+        unitKind: "CAMPUS_WIDE",
+      });
       continue;
     }
-    for (const department of departments) {
-      units.push(
-        stamp({
-          id: unitId(school.campusId, school.id, department.id),
+
+    const schools = SCHOOLS.filter((school) => school.campusId === campus.id);
+    if (campus.electoralStructure === "SCHOOL") {
+      for (const school of schools) {
+        units.push({
+          ...constitutionalSeats(`unit-${campus.id}-${school.id}-school`),
           electionId,
-          campusId: school.campusId,
+          campusId: campus.id,
+          schoolId: school.id,
+          departmentId: null,
+          unitKind: "SCHOOL",
+        });
+      }
+      continue;
+    }
+
+    for (const school of schools) {
+      const departments = DEPARTMENTS.filter((dept) => dept.schoolId === school.id);
+      for (const department of departments) {
+        units.push({
+          ...constitutionalSeats(`unit-${campus.id}-${school.id}-${department.id}`),
+          electionId,
+          campusId: campus.id,
           schoolId: school.id,
           departmentId: department.id,
-          programId: null,
-          delegateSeats: null,
-          seatStatus: "UNCONFIGURED",
-          status: "active",
-        }),
-      );
+          unitKind: "DEPARTMENT",
+        });
+      }
     }
   }
 
   return units;
 }
 
-type StudentSeed = {
-  studentId: string;
-  fullName: string;
-  campusId: string;
-  schoolId: string;
-  departmentId: string | null;
-};
-
-const STUDENT_SEEDS: StudentSeed[] = [
-  { studentId: "24/01201", fullName: "Ann Wanjiru Kamau", campusId: "campus-ruaraka", schoolId: "school-ru-bus", departmentId: "dept-ru-bus-bam" },
-  { studentId: "24/01202", fullName: "Peter Otieno Odhiambo", campusId: "campus-ruaraka", schoolId: "school-ru-bus", departmentId: "dept-ru-bus-bam" },
-  { studentId: "24/01211", fullName: "Grace Njeri Mwangi", campusId: "campus-ruaraka", schoolId: "school-ru-bus", departmentId: "dept-ru-bus-af" },
-  { studentId: "24/01212", fullName: "Ian Kiprono Langat", campusId: "campus-ruaraka", schoolId: "school-ru-bus", departmentId: "dept-ru-bus-af" },
-  { studentId: "24/01221", fullName: "Mercy Chebet Rono", campusId: "campus-ruaraka", schoolId: "school-ru-bus", departmentId: "dept-ru-bus-es" },
-  { studentId: "24/01301", fullName: "Brian Kiptoo Cheruiyot", campusId: "campus-ruaraka", schoolId: "school-ru-tech", departmentId: "dept-ru-tech-sdis" },
-  { studentId: "24/01302", fullName: "Cynthia Wairimu Njoroge", campusId: "campus-ruaraka", schoolId: "school-ru-tech", departmentId: "dept-ru-tech-sdis" },
-  { studentId: "24/01311", fullName: "Daniel Mutiso Wambua", campusId: "campus-ruaraka", schoolId: "school-ru-tech", departmentId: "dept-ru-tech-nac" },
-  { studentId: "24/01312", fullName: "Aisha Ali Mohamed", campusId: "campus-ruaraka", schoolId: "school-ru-tech", departmentId: "dept-ru-tech-nac" },
-  { studentId: "24/01313", fullName: "Samuel Kariuki Maina", campusId: "campus-ruaraka", schoolId: "school-ru-tech", departmentId: "dept-ru-tech-nac" },
-  { studentId: "24/01401", fullName: "Lilian Muthoni Kariuki", campusId: "campus-ruaraka", schoolId: "school-ru-eass", departmentId: "dept-ru-eass-eps" },
-  { studentId: "24/01411", fullName: "James Odhiambo Otieno", campusId: "campus-ruaraka", schoolId: "school-ru-eass", departmentId: "dept-ru-eass-pafmes" },
-  { studentId: "24/01501", fullName: "Naomi Cherono Bett", campusId: "campus-ruaraka", schoolId: "school-ru-ptti", departmentId: "dept-ru-ptti-pro" },
-  { studentId: "24/01511", fullName: "Collins Mwenda Mutua", campusId: "campus-ruaraka", schoolId: "school-ru-ptti", departmentId: "dept-ru-ptti-acad" },
-  { studentId: "24/02101", fullName: "Faith Wambui Gitau", campusId: "campus-western", schoolId: "school-we-tech", departmentId: null },
-  { studentId: "24/02102", fullName: "Kevin Ochieng Okoth", campusId: "campus-western", schoolId: "school-we-tech", departmentId: null },
-  { studentId: "24/02201", fullName: "Sharon Akinyi Ouma", campusId: "campus-western", schoolId: "school-we-bus", departmentId: null },
-  { studentId: "24/02301", fullName: "Peter Njoroge Kamau", campusId: "campus-western", schoolId: "school-we-ptti", departmentId: null },
-  { studentId: "24/03101", fullName: "Mary Wanjiku Ndungu", campusId: "campus-town", schoolId: "school-tn-bus", departmentId: null },
-  { studentId: "24/03102", fullName: "Jane Auma Otieno", campusId: "campus-town", schoolId: "school-tn-bus", departmentId: null },
-  { studentId: "24/03201", fullName: "Joseph Mwangi Karanja", campusId: "campus-town", schoolId: "school-tn-tech", departmentId: null },
-  { studentId: "24/03301", fullName: "Esther Nyambura Waweru", campusId: "campus-town", schoolId: "school-tn-eass", departmentId: null },
-  { studentId: "24/03401", fullName: "Hassan Abdi Noor", campusId: "campus-town", schoolId: "school-tn-ptti", departmentId: null },
-  { studentId: "24/04101", fullName: "Rebecca Chepkoech", campusId: "campus-kitengela", schoolId: "school-kt-bus", departmentId: null },
-  { studentId: "24/04201", fullName: "Tony Kipchirchir", campusId: "campus-kitengela", schoolId: "school-kt-tech", departmentId: null },
-  { studentId: "24/04301", fullName: "Agnes Achieng Onyango", campusId: "campus-kitengela", schoolId: "school-kt-ptti", departmentId: null },
-];
-
-export const STUDENT_ELECTORS: StudentElector[] = STUDENT_SEEDS.map((student) =>
-  stamp({
-    id: `st-${student.studentId.replace("/", "-")}`,
-    studentId: student.studentId,
-    fullName: student.fullName,
-    yearOfStudy: 1,
-    campusId: student.campusId,
-    schoolId: student.schoolId,
-    departmentId: student.departmentId,
-    programId: null,
-    eligibilityStatus: "eligible",
-    eligibilitySource: "mock_first_year_register",
-    voterStatus: "not_voted",
-  }),
-);
-
-export const STUDENT_MAPPINGS: StudentElectoralMapping[] = STUDENT_SEEDS.map((student) =>
-  stamp({
-    studentId: student.studentId,
-    electionId: ELECTION_ID,
-    campusId: student.campusId,
-    schoolId: student.schoolId,
-    departmentId: student.departmentId,
-    programId: null,
-    eligibilityStatus: "eligible",
-    eligibilitySource: "mock_first_year_register",
-  }),
-);
-
-const DELEGATE_SEEDS: { studentId: string; hue: number }[] = [
-  { studentId: "24/01201", hue: 210 },
-  { studentId: "24/01202", hue: 18 },
-  { studentId: "24/01211", hue: 160 },
-  { studentId: "24/01301", hue: 265 },
-  { studentId: "24/01302", hue: 40 },
-  { studentId: "24/01311", hue: 200 },
-  { studentId: "24/01312", hue: 330 },
-  { studentId: "24/01313", hue: 120 },
-  { studentId: "24/01401", hue: 280 },
-  { studentId: "24/02101", hue: 190 },
-  { studentId: "24/02102", hue: 25 },
-  { studentId: "24/03101", hue: 350 },
-  { studentId: "24/03102", hue: 80 },
-  { studentId: "24/04101", hue: 145 },
-  { studentId: "24/04201", hue: 300 },
-];
-
-export const DELEGATE_CANDIDATES: DelegateCandidate[] = DELEGATE_SEEDS.map((item, index) => {
-  const student = STUDENT_SEEDS.find((row) => row.studentId === item.studentId)!;
-  return stamp({
-    id: `del-${String(index + 1).padStart(2, "0")}`,
-    studentId: student.studentId,
-    electionId: ELECTION_ID,
-    fullName: student.fullName,
-    photo: portraitDataUri(student.fullName, item.hue),
-    campusId: student.campusId,
-    schoolId: student.schoolId,
-    departmentId: student.departmentId,
-    candidateType: "DELEGATE",
-    approvalStatus: "approved",
-    votesReceived: 0,
-    status: "active",
-  });
-});
+export const STUDENT_ELECTORS = buildStudentElectors();
+export const STUDENT_MAPPINGS = buildStudentMappings();
+export const DELEGATE_CANDIDATES = buildDelegateCandidates();
 
 export const CABINET_CANDIDATES: CabinetCandidate[] = [
-  { id: "cab-si-1", contestId: "special-interests", fullName: "Jane Auma Otieno", photo: portraitDataUri("Jane Auma Otieno", 12), status: "approved" },
-  { id: "cab-si-2", contestId: "special-interests", fullName: "Mary Wanjiku Ndungu", photo: portraitDataUri("Mary Wanjiku Ndungu", 200), status: "approved" },
-  { id: "cab-si-3", contestId: "special-interests", fullName: "Aisha Ali Mohamed", photo: portraitDataUri("Aisha Ali Mohamed", 330), status: "approved" },
-  { id: "cab-sp-1", contestId: "sports", fullName: "Daniel Mutiso Wambua", photo: portraitDataUri("Daniel Mutiso Wambua", 200), status: "approved" },
-  { id: "cab-sp-2", contestId: "sports", fullName: "Sharon Akinyi Ouma", photo: portraitDataUri("Sharon Akinyi Ouma", 18), status: "approved" },
-  { id: "cab-sp-3", contestId: "sports", fullName: "Peter Njoroge Kamau", photo: portraitDataUri("Peter Njoroge Kamau", 140), status: "approved" },
-  { id: "cab-ac-1", contestId: "academic", fullName: "Faith Wambui Gitau", photo: portraitDataUri("Faith Wambui Gitau", 190), status: "approved" },
-  { id: "cab-ac-2", contestId: "academic", fullName: "Kevin Ochieng Okoth", photo: portraitDataUri("Kevin Ochieng Okoth", 25), status: "approved" },
-  { id: "cab-ac-3", contestId: "academic", fullName: "Naomi Cherono Bett", photo: portraitDataUri("Naomi Cherono Bett", 280), status: "approved" },
-  { id: "cab-tr-1", contestId: "treasurer", fullName: "Collins Mwenda Mutua", photo: portraitDataUri("Collins Mwenda Mutua", 40), status: "approved" },
-  { id: "cab-tr-2", contestId: "treasurer", fullName: "Lilian Muthoni Kariuki", photo: portraitDataUri("Lilian Muthoni Kariuki", 280), status: "approved" },
-  { id: "cab-tr-3", contestId: "treasurer", fullName: "James Odhiambo Otieno", photo: portraitDataUri("James Odhiambo Otieno", 210), status: "approved" },
-  { id: "cab-sg-1", contestId: "secretary-general", fullName: "Cynthia Wairimu Njoroge", photo: portraitDataUri("Cynthia Wairimu Njoroge", 40), status: "approved" },
-  { id: "cab-sg-2", contestId: "secretary-general", fullName: "Brian Kiptoo Cheruiyot", photo: portraitDataUri("Brian Kiptoo Cheruiyot", 265), status: "approved" },
-  { id: "cab-sg-3", contestId: "secretary-general", fullName: "Esther Nyambura Waweru", photo: portraitDataUri("Esther Nyambura Waweru", 160), status: "approved" },
+  { id: "cab-si-1", studentId: "24/03102", contestId: "special-interests", constitutionalOfficeId: "special-interest-secretary", fullName: "Jane Auma Otieno", photo: portraitDataUri("Jane Auma Otieno", 12), gender: "F", status: "approved" },
+  { id: "cab-si-2", studentId: "24/03101", contestId: "special-interests", constitutionalOfficeId: "special-interest-secretary", fullName: "Mary Wanjiku Ndungu", photo: portraitDataUri("Mary Wanjiku Ndungu", 200), gender: "F", status: "approved" },
+  { id: "cab-si-3", studentId: "24/01312", contestId: "special-interests", constitutionalOfficeId: "special-interest-secretary", fullName: "Aisha Ali Mohamed", photo: portraitDataUri("Aisha Ali Mohamed", 330), gender: "F", status: "approved" },
+  { id: "cab-sp-1", studentId: "24/01311", contestId: "sports", constitutionalOfficeId: "sports-entertainment-secretary", fullName: "Daniel Mutiso Wambua", photo: portraitDataUri("Daniel Mutiso Wambua", 200), gender: "M", status: "approved" },
+  { id: "cab-sp-2", studentId: "24/02201", contestId: "sports", constitutionalOfficeId: "sports-entertainment-secretary", fullName: "Sharon Akinyi Ouma", photo: portraitDataUri("Sharon Akinyi Ouma", 18), gender: "F", status: "approved" },
+  { id: "cab-sp-3", studentId: "24/02301", contestId: "sports", constitutionalOfficeId: "sports-entertainment-secretary", fullName: "Peter Njoroge Kamau", photo: portraitDataUri("Peter Njoroge Kamau", 140), gender: "M", status: "approved" },
+  { id: "cab-ac-1", studentId: "24/02101", contestId: "academic", constitutionalOfficeId: "academic-secretary", fullName: "Faith Wambui Gitau", photo: portraitDataUri("Faith Wambui Gitau", 190), gender: "F", status: "approved" },
+  { id: "cab-ac-2", studentId: "24/02102", contestId: "academic", constitutionalOfficeId: "academic-secretary", fullName: "Kevin Ochieng Okoth", photo: portraitDataUri("Kevin Ochieng Okoth", 25), gender: "M", status: "approved" },
+  { id: "cab-ac-3", studentId: "24/01501", contestId: "academic", constitutionalOfficeId: "academic-secretary", fullName: "Naomi Cherono Bett", photo: portraitDataUri("Naomi Cherono Bett", 280), gender: "F", status: "approved" },
+  { id: "cab-tr-1", studentId: "24/01512", contestId: "treasurer", constitutionalOfficeId: "treasurer", fullName: "Sarah Wanjiku Njeri", photo: portraitDataUri("Sarah Wanjiku Njeri", 40), gender: "F", status: "approved" },
+  { id: "cab-tr-2", studentId: "24/01401", contestId: "treasurer", constitutionalOfficeId: "treasurer", fullName: "Lilian Muthoni Kariuki", photo: portraitDataUri("Lilian Muthoni Kariuki", 280), gender: "F", status: "approved" },
+  { id: "cab-tr-3", studentId: "24/01503", contestId: "treasurer", constitutionalOfficeId: "treasurer", fullName: "Irene Akinyi Owino", photo: portraitDataUri("Irene Akinyi Owino", 210), gender: "F", status: "approved" },
+  { id: "cab-sg-1", studentId: "24/01302", contestId: "secretary-general", constitutionalOfficeId: "secretary-general", fullName: "Cynthia Wairimu Njoroge", photo: portraitDataUri("Cynthia Wairimu Njoroge", 40), gender: "F", status: "approved" },
+  { id: "cab-sg-2", studentId: "24/01301", contestId: "secretary-general", constitutionalOfficeId: "secretary-general", fullName: "Brian Kiptoo Cheruiyot", photo: portraitDataUri("Brian Kiptoo Cheruiyot", 265), gender: "M", status: "approved" },
+  { id: "cab-sg-3", studentId: "24/03301", contestId: "secretary-general", constitutionalOfficeId: "secretary-general", fullName: "Esther Nyambura Waweru", photo: portraitDataUri("Esther Nyambura Waweru", 160), gender: "F", status: "approved" },
   {
     id: "cab-pr-1",
+    studentId: "24/01203",
     contestId: "president-ticket",
+    constitutionalOfficeId: "chairperson-ticket",
     fullName: "Janet Njeri Wambui",
     photo: portraitDataUri("Janet Njeri Wambui", 32),
-    runningMateName: "Mercy Chebet Rono",
-    runningMatePhoto: portraitDataUri("Mercy Chebet Rono", 150),
+    gender: "F",
+    runningMateStudentId: "24/01202",
+    runningMateName: "Peter Otieno Odhiambo",
+    runningMatePhoto: portraitDataUri("Peter Otieno Odhiambo", 18),
+    runningMateGender: "M",
     ticketLabel: "Unity Ticket",
     status: "approved",
   },
   {
     id: "cab-pr-2",
+    studentId: "24/01313",
     contestId: "president-ticket",
+    constitutionalOfficeId: "chairperson-ticket",
     fullName: "Samuel Kariuki Maina",
     photo: portraitDataUri("Samuel Kariuki Maina", 210),
+    gender: "M",
+    runningMateStudentId: "24/01312",
     runningMateName: "Aisha Ali Mohamed",
     runningMatePhoto: portraitDataUri("Aisha Ali Mohamed", 330),
+    runningMateGender: "F",
     ticketLabel: "Progress Ticket",
     status: "approved",
   },
@@ -432,10 +386,14 @@ function emptyStation(
       materials: false,
       prepared: false,
     },
+    frozen: false,
+    frozenAt: null,
+    frozenReason: null,
     openedAt: null,
     openedBy: null,
     closedAt: null,
     closedBy: null,
+    closingNote: null,
   };
 }
 
@@ -461,30 +419,65 @@ export function createInitialAssignments(): AssignmentRecord[] {
   );
 }
 
+function emptyElection(
+  id: string,
+  contest: "ELECTION_1_DELEGATE" | "SAKU_LEADERSHIP",
+  name: string,
+  shortName: string,
+  date: string,
+) {
+  return {
+    id,
+    cycleId: CYCLE_ID,
+    name,
+    shortName,
+    year: 2026,
+    stage: "REGISTRATION" as const,
+    contest,
+    electionDate: date,
+    startTime: "08:00",
+    endTime: "18:00",
+    votingMethod: "ELECTRONIC" as const,
+    emergencyStatus: "RUNNING" as const,
+    openedAt: null,
+    closedAt: null,
+    closedBy: null,
+    closingNote: null,
+    closingExceptionUsed: false,
+    resultsWorkflow: "NOT_STARTED" as const,
+    resultsAuthorizedAt: null,
+    resultsAuthorizedBy: null,
+    createdAt: now,
+    updatedAt: now,
+  };
+}
+
 export function createInitialStore(): AppStore {
-  const units = createElectoralUnits(ELECTION_ID);
+  const units = createElectoralUnits(ELECTION_1_ID);
+  const election1 = emptyElection(
+    ELECTION_1_ID,
+    "ELECTION_1_DELEGATE",
+    "Election 1 — Delegates Election",
+    "Delegates 2026",
+    "2026-09-22",
+  );
+  const election2 = emptyElection(
+    ELECTION_2_ID,
+    "SAKU_LEADERSHIP",
+    "Election 2 — SAKU Council Election",
+    "Council 2026",
+    "2026-09-29",
+  );
+  const delegateApplications = buildDelegateApplications(DELEGATE_CANDIDATES);
+  const councilApplications = buildCouncilApplications();
+  const voterPortal = buildVoterPortalSeed();
 
   return {
     version: STORE_VERSION,
-    election: {
-      id: ELECTION_ID,
-      name: "SAKU Student Elections 2026",
-      shortName: "SAKU 2026",
-      year: 2026,
-      stage: "REGISTRATION",
-      contest: "ELECTION_1_DELEGATE",
-      electionDate: "2026-09-22",
-      startTime: "08:00",
-      endTime: "18:00",
-      votingMethod: "ELECTRONIC",
-      emergencyStatus: "RUNNING",
-      openedAt: null,
-      closedAt: null,
-      resultsAuthorizedAt: null,
-      resultsAuthorizedBy: null,
-      createdAt: now,
-      updatedAt: now,
-    },
+    cycleId: CYCLE_ID,
+    election: election1,
+    elections: [election1, election2],
+    activeElectionContext: "ELECTION_1",
     pollingStations: POLLING_STATIONS,
     candidates: [
       {
@@ -545,14 +538,29 @@ export function createInitialStore(): AppStore {
       approvedAt: null,
       approvedBy: null,
     },
+    stationElectionState: POLLING_STATIONS.flatMap((station) =>
+      [ELECTION_1_ID, ELECTION_2_ID].map((electionId) => ({
+        electionId,
+        stationId: station.id,
+        status: "NOT_READY" as const,
+        votesCast: 0,
+        readiness: station.readiness,
+        frozen: false,
+        openedAt: null,
+        openedBy: null,
+        closedAt: null,
+        closedBy: null,
+        closingNote: null,
+      })),
+    ),
     notifications: [
       {
         id: "n-1",
-        title: "Seat allocation is required",
-        body: "Delegate seats are unconfigured for every electoral unit. Do not invent a default number.",
+        title: "DEMO MODE — MOCK DATA ONLY",
+        body: "This prototype uses interconnected mock records. No live ERP, fee-clearance or SMS gateway is connected.",
         createdAt: now,
         read: false,
-        href: "/commission/election/election-1?tab=structure",
+        href: "/commission/election",
         audience: "all",
       },
       {
@@ -592,25 +600,143 @@ export function createInitialStore(): AppStore {
     electoralUnits: units,
     studentElectors: STUDENT_ELECTORS,
     studentMappings: STUDENT_MAPPINGS,
+    candidateApplications: [...delegateApplications, ...councilApplications],
+    candidateLocks: [
+      { electionId: ELECTION_1_ID, status: "CONFIRMED", lockedAt: null, lockedBy: null },
+      { electionId: ELECTION_2_ID, status: "DRAFT", lockedAt: null, lockedBy: null },
+    ],
     delegateCandidates: DELEGATE_CANDIDATES,
     delegateVotes: [],
     electedDelegates: [],
     electoralCollege: {
-      electionId: ELECTION_ID,
+      electionId: ELECTION_2_ID,
+      sourceElectionId: ELECTION_1_ID,
+      version: 0,
       status: "not_generated",
       generatedAt: null,
       verifiedAt: null,
       verifiedBy: null,
+      approvedAt: null,
+      approvedBy: null,
       entries: [],
     },
+    electoralCollegeHistory: [],
     cabinetCandidates: CABINET_CANDIDATES,
     cabinetDrafts: [],
     cabinetVotes: [],
+    agents: buildAgents(),
+    agentAttendance: [],
+    agentObservations: [
+      {
+        id: "obs-ru-001",
+        agentId: "agent-003",
+        stationId: "ps-ruaraka",
+        body: "Independent agent observation of the same Ruaraka queue crowding. Original agent wording preserved.",
+        createdAt: "2026-09-22T08:55:00.000Z",
+        linkedIncidentId: "inc-ru-agent",
+      },
+      {
+        id: "obs-tn-001",
+        agentId: "agent-001",
+        stationId: "ps-town",
+        body: "Agent observation: campaign material was visible near the Town station entrance and was later removed.",
+        createdAt: "2026-09-22T09:36:00.000Z",
+        linkedIncidentId: "inc-tn-agent",
+      },
+    ],
+    voterExceptions: buildVoterExceptions(),
+    voterProfiles: voterPortal.profiles,
+    voterHistory: voterPortal.history,
+    voterNotifications: voterPortal.notifications,
+    academicCorrectionRequests: voterPortal.corrections,
+    identityDocumentPolicy: DEFAULT_IDENTITY_DOCUMENT_POLICY,
+    accessibilityReadiness: POLLING_STATIONS.map((station) => ({
+      campusId: station.campusId,
+      stationId: station.id,
+      preparedCount: 0,
+      outstandingCount: STUDENT_ELECTORS.filter(
+        (student) => student.campusId === station.campusId && student.accessibility.declared,
+      ).length,
+      notes: "Station accommodation preparation is pending the assigned Commissioner.",
+      updatedAt: now,
+    })),
+    resultsByElection: [
+      { electionId: ELECTION_1_ID, workflow: "NOT_STARTED", generatedAt: null, totals: [], discrepancies: [], authorizedBy: null, declaredAt: null, publishedAt: null },
+      { electionId: ELECTION_2_ID, workflow: "NOT_STARTED", generatedAt: null, totals: [], discrepancies: [], authorizedBy: null, declaredAt: null, publishedAt: null },
+    ],
+    namingDiscrepancies: [
+      {
+        officeId: "chairperson-ticket",
+        note: "The 2021 Constitution uses Chairperson and Vice Chairperson. This prototype still displays President and Vice President pending Commission resolution before any live election.",
+      },
+      {
+        officeId: "treasurer",
+        note: "The Constitution uses Treasurer. This prototype still displays Treasurer / Finance Secretary.",
+      },
+      {
+        officeId: "special-interest-secretary",
+        note: "The Constitution uses Special Interest Secretary. This prototype still displays Special Interests Secretary.",
+      },
+    ],
+    policyFlags: [
+      {
+        id: "election-wide-close-authority",
+        topic: "Election-wide closing authorisation",
+        status: "needs_confirmation",
+        detail: "Chair and Vice Chair currently hold the prototype election-wide close action. The Commission’s formal closing procedure has not been supplied.",
+      },
+      {
+        id: "tie-procedure",
+        topic: "Election 1 ties",
+        status: "needs_confirmation",
+        detail: "No approved procedure was supplied for ties that affect the final three delegate places. Tied outcomes are flagged for Commission review.",
+      },
+      {
+        id: "abstention",
+        topic: "Blank ballots",
+        status: "needs_confirmation",
+        detail: "The current prototype requires a selection before NEXT or submission. Formal abstention rules are pending Commission confirmation.",
+      },
+      {
+        id: "grand-total-42",
+        topic: "Delegate seat grand total",
+        status: "needs_confirmation",
+        detail: SEAT_REVIEW_NOTE,
+      },
+      {
+        id: "western-unit-level",
+        topic: "Western / Kisumu electoral-unit mapping",
+        status: "needs_confirmation",
+        detail: "Part 1 refers to department-based Electoral Colleges at Western. The signed academic reference lists Western schools without departments, so this prototype maps three school-level units and does not invent departments.",
+      },
+      {
+        id: "identity-document-policy",
+        topic: "Voter identity documents",
+        status: "needs_confirmation",
+        detail: "Only Kenyan National ID is enabled for the Voter Portal prototype. An alternative-document policy has not been supplied and is not invented here.",
+      },
+    ],
     assignments: createInitialAssignments(),
-    incidents: [],
+    incidents: buildIncidents(),
     emergencies: [],
     notices: [],
     disputes: [],
+    structuralAudit: [
+      {
+        id: "sa-1",
+        at: now,
+        actorWorkId: "SYSTEM",
+        actorName: "ORBIS prototype seed",
+        entity: "electoral_unit",
+        entityId: CONFIG_VERSION,
+        field: "delegateSeats",
+        oldValue: "UNCONFIGURED",
+        newValue: "3",
+        reason: SEAT_SOURCE,
+        electionId: ELECTION_1_ID,
+        configurationVersionId: CONFIG_VERSION,
+      },
+    ],
   };
 }
 

@@ -22,6 +22,8 @@ export function StationConsole({
   const router = useRouter();
   const [readiness, setReadiness] = useState(station.readiness);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [confirmClose, setConfirmClose] = useState(false);
+  const [closingNote, setClosingNote] = useState("");
   const [message, setMessage] = useState<string | null>(null);
 
   async function persist(next: StationReadiness) {
@@ -87,13 +89,9 @@ export function StationConsole({
         <button
           type="button"
           className="mt-6 rounded-sm bg-navy px-4 py-3 text-xs font-bold tracking-[0.16em] text-cream uppercase"
-          onClick={async () => {
-            const result = await closePollingStation(station.id);
-            setMessage(result.ok ? "Station closed." : result.error);
-            router.refresh();
-          }}
+          onClick={() => setConfirmClose(true)}
         >
-          Close station
+          Close this station only
         </button>
       ) : null}
 
@@ -122,6 +120,44 @@ export function StationConsole({
                 }}
               >
                 Open station
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {confirmClose ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-navy-deep/60 px-4">
+          <div className="w-full max-w-md rounded-2xl bg-white p-6">
+            <p className="font-serif text-2xl text-navy">Close {station.campus} station?</p>
+            <p className="mt-2 text-sm text-navy/70">
+              This stops new votes at this station only. The other three campuses continue if they
+              remain open. Previously accepted ballots are preserved. Election-wide closing is a
+              separate Commission action.
+            </p>
+            <p className="mt-3 text-sm text-navy/60">Votes submitted at this station: {station.votesCast}</p>
+            <textarea
+              value={closingNote}
+              onChange={(event) => setClosingNote(event.target.value)}
+              placeholder="Closing note"
+              rows={3}
+              className="mt-3 w-full rounded-xl border border-navy/15 px-3 py-2 text-sm"
+            />
+            <div className="mt-5 flex justify-end gap-2">
+              <button type="button" className="px-4 py-2 text-sm" onClick={() => setConfirmClose(false)}>
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="rounded-sm bg-navy px-4 py-2 text-sm font-bold text-cream uppercase"
+                onClick={async () => {
+                  const result = await closePollingStation(station.id, closingNote);
+                  setConfirmClose(false);
+                  setMessage(result.ok ? "Station closed. Other stations are unchanged." : result.error);
+                  router.refresh();
+                }}
+              >
+                Confirm and close station
               </button>
             </div>
           </div>

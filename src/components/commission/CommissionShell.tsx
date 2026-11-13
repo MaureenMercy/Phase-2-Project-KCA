@@ -7,9 +7,12 @@ import { BrandMark } from "@/components/brand/BrandLogo";
 import { KcaWatermark } from "@/components/brand/KcaWatermark";
 import { logoutAction, logoutAndForgetDevice } from "@/lib/actions/auth";
 import type { NavItem } from "@/lib/nav";
+import { ElectionContextSwitch } from "@/components/commission/ElectionContextSwitch";
+import { DemoBanner } from "@/components/commission/DemoBanner";
 import { CONTEST_LABELS, ROLE_LABELS, STAGE_LABELS } from "@/lib/permissions";
 import type {
   CommissionRole,
+  ElectionContext,
   ElectionContest,
   ElectionStage,
   NotificationItem,
@@ -30,6 +33,7 @@ export function CommissionShell({
   stage,
   contest,
   emergencyPaused,
+  electionContext,
   items,
   notifications,
   children,
@@ -39,6 +43,7 @@ export function CommissionShell({
   stage: ElectionStage;
   contest: ElectionContest;
   emergencyPaused: boolean;
+  electionContext: ElectionContext;
   items: NavItem[];
   notifications: NotificationItem[];
   children: React.ReactNode;
@@ -56,6 +61,7 @@ export function CommissionShell({
         contest={contest}
         stage={stage}
         emergencyPaused={emergencyPaused}
+        electionContext={electionContext}
         onMenu={() => {
           if (window.matchMedia("(max-width: 1023px)").matches) {
             setMobileOpen((value) => !value);
@@ -74,6 +80,7 @@ export function CommissionShell({
         />
         <div className="relative min-w-0 flex-1">
           <KcaWatermark />
+          <DemoBanner />
           <MobileAdminNotice />
           <main className="relative z-10 px-4 py-6 md:px-8 md:py-8">{children}</main>
         </div>
@@ -89,6 +96,7 @@ function TopBar({
   contest,
   stage,
   emergencyPaused,
+  electionContext,
   onMenu,
 }: {
   user: ShellUser;
@@ -97,6 +105,7 @@ function TopBar({
   contest: ElectionContest;
   stage: ElectionStage;
   emergencyPaused: boolean;
+  electionContext: ElectionContext;
   onMenu: () => void;
 }) {
   return (
@@ -112,14 +121,15 @@ function TopBar({
         </button>
         <BrandMark className="hidden h-10 w-auto max-w-[148px] sm:block" />
         <p className="min-w-0 flex-1 truncate font-serif text-sm tracking-[0.22em] text-white uppercase md:text-base">
-          SAKU Election System
+          ORBIS — SAKU Election Platform
         </p>
         <NotificationBell notifications={notifications} />
         <UserMenu user={user} />
       </div>
-      <div className="flex flex-wrap items-center gap-x-6 gap-y-1 border-t border-white/10 bg-navy-deep px-4 py-2 text-xs md:px-6">
+      <div className="flex flex-wrap items-center gap-x-6 gap-y-2 border-t border-white/10 bg-navy-deep px-4 py-2 text-xs md:px-6">
+        <ElectionContextSwitch current={electionContext} />
         <p>
-          <span className="tracking-[0.16em] text-gold/80 uppercase">Election</span>{" "}
+          <span className="tracking-[0.16em] text-gold/80 uppercase">Active</span>{" "}
           <span className="text-cream">{electionName}</span>
         </p>
         <p>

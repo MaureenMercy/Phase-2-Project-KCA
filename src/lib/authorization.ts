@@ -125,7 +125,9 @@ export function evaluateCommissionAccess(
     ),
   );
 
-  const assignedToElection = member.electionId === input.election.id;
+  const assignedToElection =
+    member.electionId === input.election.id ||
+    member.electionId === input.election.cycleId;
 
   steps.push(
     assignedToElection

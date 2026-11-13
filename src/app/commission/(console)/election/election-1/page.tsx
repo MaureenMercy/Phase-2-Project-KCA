@@ -11,7 +11,7 @@ import {
   verifyElectoralCollege,
 } from "@/lib/actions/election";
 import { courseOptions } from "@/lib/courses";
-import { candidatesForUnit, resolveUnits, unitLabel } from "@/lib/electoral";
+import { candidatesForUnit, resolveUnits, unitForStudent, unitLabel } from "@/lib/electoral";
 import { formatNumber } from "@/lib/format";
 import { overlayCandidatePhotos, overlayPersistedVotes } from "@/lib/ops-overlay";
 import { isAllowedNow } from "@/lib/permissions";
@@ -59,7 +59,8 @@ export default async function Election1Page({
       <PageHeader eyebrow="Election 1" title="Delegate Election">
         Students vote only for approved delegate candidates in their own
         electoral unit. The system derives school and department. Seat numbers
-        stay unconfigured until the Commission enters an authoritative allocation.
+        are stored from the Constitution’s three-representatives-per-college rule
+        applied to the signed academic structure. Town and Kitengela are campus-wide.
       </PageHeader>
 
       <ModuleSubnav
@@ -80,7 +81,7 @@ export default async function Election1Page({
           <article className="rounded-2xl border border-navy/10 bg-white/90 p-5">
             <p className="text-xs text-navy/40 uppercase">Units needing seats</p>
             <p className="font-serif text-4xl text-navy">{units.filter((unit) => unit.delegateSeats === null).length}</p>
-            <p className="text-xs text-navy/55">No default of 3. Nothing is inferred.</p>
+            <p className="text-xs text-navy/55">Constitutional 3 per college, not a silent department default.</p>
           </article>
           <article className="rounded-2xl border border-navy/10 bg-white/90 p-5">
             <p className="text-xs text-navy/40 uppercase">Approved delegates</p>
@@ -103,12 +104,7 @@ export default async function Election1Page({
             </thead>
             <tbody>
               {store.studentElectors.map((student) => {
-                const unit = units.find(
-                  (item) =>
-                    item.campusId === student.campusId &&
-                    item.schoolId === student.schoolId &&
-                    (item.departmentId ?? null) === (student.departmentId ?? null),
-                );
+                const unit = unitForStudent(store, student);
                 return (
                   <tr key={student.id} className="border-t border-navy/10">
                     <td className="px-4 py-3 font-mono text-xs">{student.studentId}</td>

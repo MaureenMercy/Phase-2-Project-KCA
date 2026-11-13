@@ -1,6 +1,10 @@
 import { CABINET_CONTESTS } from "@/lib/electoral";
-import type { CabinetCandidate, CabinetContestId, CandidateRecord } from "@/lib/types";
+import { CONSTITUTIONAL_OFFICES, type CabinetCandidate, type CabinetContestId, type CandidateRecord } from "@/lib/types";
 import { portraitDataUri } from "@/lib/portraits";
+
+function officeIdFor(contestId: CabinetContestId) {
+  return CONSTITUTIONAL_OFFICES.find((office) => office.contestId === contestId)?.id ?? contestId;
+}
 
 const POSITION_TO_CONTEST: Record<string, CabinetContestId> = {
   President: "president-ticket",
@@ -28,6 +32,7 @@ export function toCabinetCandidate(candidate: CandidateRecord, hue = 210): Cabin
     return {
       id: `cab-from-${candidate.id}`,
       contestId,
+      constitutionalOfficeId: officeIdFor(contestId),
       fullName: candidate.fullName,
       photo,
       runningMateName: candidate.runningMateName || "Running mate to be named",
@@ -39,6 +44,7 @@ export function toCabinetCandidate(candidate: CandidateRecord, hue = 210): Cabin
   return {
     id: `cab-from-${candidate.id}`,
     contestId,
+    constitutionalOfficeId: officeIdFor(contestId),
     fullName: candidate.fullName,
     photo,
     ticketLabel: candidate.ticket,

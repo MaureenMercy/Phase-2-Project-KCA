@@ -20,6 +20,7 @@ describe("role permissions", () => {
     expect(roleHasPermission("CHAIR", "authorize_results")).toBe(true);
     expect(roleHasPermission("CHAIR", "authorize_election_opening")).toBe(true);
     expect(roleHasPermission("CHAIR", "approve_candidates")).toBe(true);
+    expect(roleHasPermission("CHAIR", "station_operations")).toBe(false);
   });
 
   it("does not let the Vice Chair authorize official results", () => {
@@ -33,8 +34,9 @@ describe("role permissions", () => {
     expect(roleHasPermission("SECRETARY_GENERAL", "authorize_results")).toBe(false);
   });
 
-  it("lets a Commissioner approve candidates and work a station, but not authorize results", () => {
-    expect(roleHasPermission("COMMISSIONER", "approve_candidates")).toBe(true);
+  it("lets a Commissioner work a station but not approve candidates or authorize results", () => {
+    expect(roleHasPermission("COMMISSIONER", "approve_candidates")).toBe(false);
+    expect(roleHasPermission("COMMISSIONER", "view_candidates")).toBe(true);
     expect(roleHasPermission("COMMISSIONER", "station_operations")).toBe(true);
     expect(roleHasPermission("COMMISSIONER", "authorize_results")).toBe(false);
     expect(roleHasPermission("COMMISSIONER", "authorize_election_opening")).toBe(false);
