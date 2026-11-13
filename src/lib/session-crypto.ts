@@ -1,12 +1,13 @@
 import { createHash } from "node:crypto";
 import { EncryptJWT, jwtDecrypt, errors as joseErrors } from "jose";
 import { SESSION_IDLE_MS } from "@/lib/session-limits";
-import type { ElectorSessionPayload, SessionPayload } from "@/lib/types";
+import type { CandidateSessionPayload, ElectorSessionPayload, SessionPayload } from "@/lib/types";
 
 export { SESSION_IDLE_MS };
 export const SESSION_COOKIE = "saku_ec_session";
 export const TRUSTED_DEVICE_COOKIE = "saku_ec_trusted";
 export const ELECTOR_COOKIE = "saku_elector_session";
+export const CANDIDATE_COOKIE = "saku_candidate_session";
 export const SESSION_ABSOLUTE_SECONDS = 12 * 60 * 60;
 export const TRUSTED_DEVICE_SECONDS = 30 * 24 * 60 * 60;
 export const REAUTH_WINDOW_MS = 5 * 60 * 1000;
@@ -105,6 +106,28 @@ export async function decryptElectorPayload(
       return null;
     }
     return payload as unknown as ElectorSessionPayload;
+  } catch {
+    return null;
+  }
+}
+
+export async function encryptCandidatePayload(payload: CandidateSessionPayload) {
+  return new EncryptJWT({ ...payload, kind: "candidate" })
+    .setProtectedHeader({ alg: "dir", enc: "A256GCM" })
+    .setIssuedAt()
+    .setExpirationTime("8h")
+    .encrypt(getKey());
+}
+
+export async function decryptCandidatePayload(
+  token: string,
+): Promise<CandidateSessionPayload | null> {
+  try {
+    const { payload } = await jwtDecrypt(token, getKey());
+    if (payload.kind !== "candidate" || !payload.studentId || !payload.studentIdentityId) {
+      return null;
+    }
+    return payload as unknown as CandidateSessionPayload;
   } catch {
     return null;
   }

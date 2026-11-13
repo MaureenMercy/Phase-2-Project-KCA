@@ -12,6 +12,10 @@ function fromHex(value: string) {
   return Buffer.from(value, "hex");
 }
 
+export function hashNationalId(value: string) {
+  return createHash("sha256").update(value.replace(/[\s-]/g, "").toUpperCase()).digest("hex");
+}
+
 export function encryptNationalId(plain: string) {
   const iv = randomBytes(12);
   const cipher = createCipheriv("aes-256-gcm", identityKey(), iv);

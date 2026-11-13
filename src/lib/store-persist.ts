@@ -32,6 +32,13 @@ export function stripStorePhotos(store: AppStore): AppStore {
     studentElectors: store.studentElectors.map(
       ({ nationalIdCipher: _cipher, nationalIdEncrypted: _encrypted, ...rest }) => rest,
     ),
+    candidatePortalApplications: (store.candidatePortalApplications ?? []).map((application) => ({
+      ...application,
+      photograph: application.photograph
+        ? { ...application.photograph, dataUrl: "" }
+        : null,
+      documents: application.documents.map((file) => ({ ...file, dataUrl: "" })),
+    })),
   };
 }
 
@@ -104,6 +111,31 @@ export function restoreStorePhotos(parsed: AppStore, seed: AppStore): AppStore {
     voterNotifications: parsed.voterNotifications ?? seed.voterNotifications,
     academicCorrectionRequests: parsed.academicCorrectionRequests ?? seed.academicCorrectionRequests,
     identityDocumentPolicy: parsed.identityDocumentPolicy ?? seed.identityDocumentPolicy,
+    studentIdentities: parsed.studentIdentities?.length
+      ? parsed.studentIdentities
+      : seed.studentIdentities,
+    candidateProfiles: parsed.candidateProfiles ?? seed.candidateProfiles,
+    candidatePortalApplications: (parsed.candidatePortalApplications ?? seed.candidatePortalApplications).map(
+      (application) => {
+        const seeded = seed.candidatePortalApplications.find((item) => item.id === application.id);
+        return {
+          ...application,
+          photograph:
+            application.photograph && !application.photograph.dataUrl && seeded?.photograph
+              ? seeded.photograph
+              : application.photograph,
+          documents: application.documents.map((file) => {
+            if (file.dataUrl) return file;
+            const seededFile = seeded?.documents.find((item) => item.id === file.id);
+            return seededFile ?? file;
+          }),
+        };
+      },
+    ),
+    agentNominations: parsed.agentNominations ?? seed.agentNominations,
+    correctionRequests: parsed.correctionRequests ?? seed.correctionRequests,
+    portalNotifications: parsed.portalNotifications ?? seed.portalNotifications,
+    portalConfig: parsed.portalConfig ?? seed.portalConfig,
   };
 }
 

@@ -121,3 +121,20 @@ body {
     display: none !important;
   }
 }
+
+.candidate-portal {
+  background: #f3f5f9;
+  color: var(--ink);
+}
+
+.candidate-portal :focus-visible {
+  outline: 3px solid #182b5c;
+  outline-offset: 2px;
+}
+
+.candidate-card {
+  background: #ffffff;
+  border: 1px solid #d9dee8;
+  border-radius: 18px;
+  box-shadow: 0 10px 30px rgba(16, 27, 58, 0.06);
+}

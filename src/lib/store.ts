@@ -17,8 +17,17 @@ import {
   STATE_COOKIE_COUNT,
   STATE_COOKIE_PREFIX,
 } from "@/lib/store-persist";
-import type { AppStore, AuditEvent } from "@/lib/types";
+import type { AppStore, AuditEvent, CandidatePortalApplication } from "@/lib/types";
 import { STORE_VERSION } from "@/lib/types";
+
+function isPortalApplicationRecord(item: unknown): item is CandidatePortalApplication {
+  return Boolean(
+    item &&
+      typeof item === "object" &&
+      "currentStep" in item &&
+      "ballotParticipationStatus" in item,
+  );
+}
 
 const STORE_PATH = path.join(process.cwd(), "data", "store.json");
 const COOKIE_MAX_AGE = 12 * 60 * 60;
@@ -35,7 +44,7 @@ const globalStore = globalThis as typeof globalThis & GlobalStore;
 
 function migrate(parsed: Partial<AppStore>): AppStore {
   const initial = createInitialStore();
-  if (parsed.version !== STORE_VERSION || !parsed.electoralUnits || !parsed.campuses) {
+  if (!parsed.electoralUnits || !parsed.campuses) {
     return {
       ...initial,
       auditLog: parsed.auditLog?.length ? parsed.auditLog : initial.auditLog,
@@ -56,6 +65,25 @@ function migrate(parsed: Partial<AppStore>): AppStore {
     phoneNumber: student.phoneNumber ?? mockPhone(student.studentId),
     nationalIdLast4: student.nationalIdLast4 ?? last4(mockNationalId(student.studentId)),
   }));
+  merged.studentIdentities = parsed.studentIdentities?.length
+    ? parsed.studentIdentities
+    : initial.studentIdentities;
+  merged.candidateProfiles = parsed.candidateProfiles ?? initial.candidateProfiles;
+  const parsedApps = (parsed.candidateApplications ?? []) as unknown[];
+  const portalFromLegacy = parsedApps.filter(isPortalApplicationRecord);
+  const commissionApps = parsedApps.filter((item) => !isPortalApplicationRecord(item));
+  merged.candidatePortalApplications = parsed.candidatePortalApplications?.length
+    ? parsed.candidatePortalApplications
+    : portalFromLegacy.length
+      ? portalFromLegacy
+      : initial.candidatePortalApplications;
+  merged.candidateApplications = commissionApps.length
+    ? (commissionApps as AppStore["candidateApplications"])
+    : initial.candidateApplications;
+  merged.agentNominations = parsed.agentNominations ?? initial.agentNominations;
+  merged.correctionRequests = parsed.correctionRequests ?? initial.correctionRequests;
+  merged.portalNotifications = parsed.portalNotifications ?? initial.portalNotifications;
+  merged.portalConfig = parsed.portalConfig ?? initial.portalConfig;
   return merged;
 }
 

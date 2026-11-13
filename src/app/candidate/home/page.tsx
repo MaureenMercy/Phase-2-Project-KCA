@@ -1,7 +1,7 @@
-import { redirect } from "next/navigation";
 import { ActionButton } from "@/components/commission/ActionButton";
 import { confirmCandidateVerification } from "@/lib/actions/portals";
 import { AgentNominateForm } from "@/components/portals/AgentNominateForm";
+import { CandidatePinLogin } from "@/components/portals/CandidatePinLogin";
 import { readElectorSession } from "@/lib/elector-session";
 import { readStore } from "@/lib/store";
 
@@ -10,7 +10,9 @@ export const metadata = { title: "Candidate Portal" };
 
 export default async function CandidateHomePage() {
   const session = await readElectorSession();
-  if (!session?.electorId.startsWith("candidate:")) redirect("/candidate");
+  if (!session?.electorId.startsWith("candidate:")) {
+    return <CandidatePinLogin />;
+  }
   const studentId = session.electorId.replace("candidate:", "");
   const store = await readStore();
   const applications = store.candidateApplications.filter((item) => item.studentId === studentId);
