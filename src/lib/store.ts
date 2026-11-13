@@ -56,6 +56,10 @@ function migrate(parsed: Partial<AppStore>): AppStore {
   merged.voterNotifications = parsed.voterNotifications ?? initial.voterNotifications;
   merged.academicCorrectionRequests = parsed.academicCorrectionRequests ?? initial.academicCorrectionRequests;
   merged.identityDocumentPolicy = parsed.identityDocumentPolicy ?? initial.identityDocumentPolicy;
+  merged.agentInvitations = parsed.agentInvitations ?? initial.agentInvitations;
+  merged.agentNotifications = parsed.agentNotifications ?? initial.agentNotifications;
+  merged.observationInstructions = parsed.observationInstructions ?? initial.observationInstructions;
+  merged.agentPolicy = parsed.agentPolicy ?? initial.agentPolicy;
   merged.studentElectors = (parsed.studentElectors ?? initial.studentElectors).map((student) => ({
     ...student,
     phoneNumber: student.phoneNumber ?? mockPhone(student.studentId),

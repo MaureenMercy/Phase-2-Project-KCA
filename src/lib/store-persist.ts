@@ -29,7 +29,9 @@ export function stripStorePhotos(store: AppStore): AppStore {
         photo: "",
       }),
     ),
-    studentElectors: store.studentElectors.map(({ nationalIdCipher: _cipher, ...rest }) => rest),
+    studentElectors: store.studentElectors.map(
+      ({ nationalIdCipher: _cipher, nationalIdEncrypted: _encrypted, ...rest }) => rest,
+    ),
     candidatePortalApplications: (store.candidatePortalApplications ?? []).map((application) => ({
       ...application,
       photograph: application.photograph
@@ -73,7 +75,12 @@ function photoIndex(seed: AppStore): PhotoIndex {
 
 export function restoreStorePhotos(parsed: AppStore, seed: AppStore): AppStore {
   const photos = photoIndex(seed);
-  const identity = new Map(seed.studentElectors.map((item) => [item.studentId, item.nationalIdCipher]));
+  const identity = new Map(
+    seed.studentElectors.map((item) => [
+      item.studentId,
+      { cipher: item.nationalIdCipher, encrypted: item.nationalIdEncrypted },
+    ]),
+  );
   return {
     ...seed,
     ...parsed,
@@ -96,7 +103,8 @@ export function restoreStorePhotos(parsed: AppStore, seed: AppStore): AppStore {
     }),
     studentElectors: (parsed.studentElectors ?? seed.studentElectors).map((item) => ({
       ...item,
-      nationalIdCipher: item.nationalIdCipher || identity.get(item.studentId),
+      nationalIdCipher: item.nationalIdCipher || identity.get(item.studentId)?.cipher,
+      nationalIdEncrypted: item.nationalIdEncrypted || identity.get(item.studentId)?.encrypted,
     })),
     voterProfiles: parsed.voterProfiles ?? seed.voterProfiles,
     voterHistory: parsed.voterHistory ?? seed.voterHistory,

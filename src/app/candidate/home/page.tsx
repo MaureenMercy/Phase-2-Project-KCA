@@ -18,6 +18,7 @@ export default async function CandidateHomePage() {
   const applications = store.candidateApplications.filter((item) => item.studentId === studentId);
   const council = applications.find((item) => item.electionKind === "COUNCIL");
   const agents = store.agents.filter((item) => item.candidateStudentId === studentId);
+  const invitations = store.agentInvitations.filter((item) => item.candidateStudentId === studentId);
 
   return (
     <main className="min-h-screen bg-cream px-4 py-10 text-navy">
@@ -45,7 +46,16 @@ export default async function CandidateHomePage() {
             <h2 className="font-serif text-2xl">Nominate an agent</h2>
             <p className="text-sm text-navy/60">Only SAKU Council candidates may nominate agents.</p>
             <AgentNominateForm />
-            <ul className="mt-4 text-sm">
+            <h3 className="mt-6 font-semibold">Invitations</h3>
+            <ul className="mt-2 text-sm">
+              {invitations.map((item) => (
+                <li key={item.id} className="border-b border-navy/10 py-2">
+                  <span className="font-mono">{item.reference}</span> · {item.invitedFullName} · {item.status}
+                </li>
+              ))}
+            </ul>
+            <h3 className="mt-4 font-semibold">Applications</h3>
+            <ul className="mt-2 text-sm">
               {agents.map((agent) => (
                 <li key={agent.id}>
                   {agent.fullName} · {agent.agentCode} · {agent.accreditationStatus}

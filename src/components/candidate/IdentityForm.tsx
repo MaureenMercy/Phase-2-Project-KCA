@@ -2,14 +2,14 @@
 
 import { useState } from "react";
 import { startCandidateVerification } from "@/lib/actions/candidate-portal";
-import type { IdentityDocumentType } from "@/lib/types";
+import type { PortalIdentityDocumentType } from "@/lib/types";
 
 export function IdentityForm({
   documentTypes,
   alternativePolicyPending,
   demoAccounts,
 }: {
-  documentTypes: IdentityDocumentType[];
+  documentTypes: PortalIdentityDocumentType[];
   alternativePolicyPending: boolean;
   demoAccounts: Array<{
     studentId: string;
