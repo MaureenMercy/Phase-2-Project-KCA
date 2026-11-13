@@ -1,13 +1,20 @@
+import { last4, mockNationalId, mockPhone } from "@/lib/identity";
 import { portraitDataUri } from "@/lib/portraits";
 import type {
   AccessibilityCategory,
+  AcademicCorrectionRequest,
   AgentRecord,
   CandidateApplication,
   DelegateCandidate,
+  Election2VoterStatus,
   IncidentRecord,
   StudentElector,
   StudentElectoralMapping,
   VoterException,
+  VoterHistoryEvent,
+  VoterNotification,
+  VoterProfile,
+  VoterRegistrationStatus,
 } from "@/lib/types";
 
 export const CYCLE_ID = "saku-2026";
@@ -67,6 +74,7 @@ export const SEED_PEOPLE: SeedPerson[] = [
   { studentId: "24/01511", fullName: "Collins Mwenda Mutua", gender: "M", campusId: "campus-ruaraka", schoolId: "school-ru-ptti", departmentId: "dept-ru-ptti-acad", candidate: true },
   { studentId: "24/01512", fullName: "Sarah Wanjiku Njeri", gender: "F", campusId: "campus-ruaraka", schoolId: "school-ru-ptti", departmentId: "dept-ru-ptti-acad", candidate: true },
   { studentId: "24/01513", fullName: "Paul Kiprono Bett", gender: "M", campusId: "campus-ruaraka", schoolId: "school-ru-ptti", departmentId: "dept-ru-ptti-acad", candidate: true },
+  { studentId: "24/01901", fullName: "Joyce Wambui Kariuki", gender: "F", campusId: "campus-ruaraka", schoolId: "school-ru-bus", departmentId: null },
   { studentId: "24/02101", fullName: "Faith Wambui Gitau", gender: "F", campusId: "campus-western", schoolId: "school-we-tech", departmentId: null, candidate: true, accessibility: { categories: ["hearing"], accommodations: ["Visual instructions", "Captions"], notes: "Requests captioned guidance." } },
   { studentId: "24/02102", fullName: "Kevin Ochieng Okoth", gender: "M", campusId: "campus-western", schoolId: "school-we-tech", departmentId: null, candidate: true },
   { studentId: "24/02103", fullName: "Triza Adhiambo Otieno", gender: "F", campusId: "campus-western", schoolId: "school-we-tech", departmentId: null, candidate: true },
@@ -99,39 +107,47 @@ function emptyAccessibility(): StudentElector["accessibility"] {
 }
 
 export function buildStudentElectors(): StudentElector[] {
-  return SEED_PEOPLE.map((person) => ({
-    id: `st-${person.studentId.replace("/", "-")}`,
-    studentId: person.studentId,
-    fullName: person.fullName,
-    gender: person.gender,
-    yearOfStudy: 1,
-    campusId: person.campusId,
-    schoolId: person.schoolId,
-    departmentId: person.departmentId,
-    programId: null,
-    eligibilityStatus: "eligible",
-    eligibilitySource: "mock_first_year_register",
-    election1Eligibility: "eligible",
-    election1VotingStatus: "not_voted",
-    electedDelegateStatus: "not_applicable",
-    electoralCollegeEligibility: "not_applicable",
-    election2Eligibility: "not_applicable",
-    election2VotingStatus: "not_applicable",
-    verificationStatus: "verified",
-    voterStatus: "not_voted",
-    accessibility: person.accessibility
-      ? {
-          declared: true,
-          categories: person.accessibility.categories,
-          accommodations: person.accessibility.accommodations,
-          notes: person.accessibility.notes,
-          updatedAt: now,
-          consentToShareOperationally: true,
-        }
-      : emptyAccessibility(),
-    createdAt: now,
-    updatedAt: now,
-  }));
+  return SEED_PEOPLE.map((person) => {
+    const nationalId = mockNationalId(person.studentId);
+    const votedElection1 = person.studentId === "24/02101";
+    const ineligibleVoter = person.studentId === "24/03401";
+    return {
+      id: `st-${person.studentId.replace("/", "-")}`,
+      studentId: person.studentId,
+      fullName: person.fullName,
+      gender: person.gender,
+      yearOfStudy: 1,
+      campusId: person.campusId,
+      schoolId: person.schoolId,
+      departmentId: person.departmentId,
+      programId: null,
+      eligibilityStatus: ineligibleVoter ? "ineligible" : person.departmentId === null && person.campusId === "campus-ruaraka" ? "pending" : "eligible",
+      eligibilitySource: "mock_first_year_register",
+      election1Eligibility: ineligibleVoter ? "ineligible" : person.departmentId === null && person.campusId === "campus-ruaraka" ? "pending" : "eligible",
+      election1VotingStatus: votedElection1 ? "voted" : "not_voted",
+      electedDelegateStatus: "not_applicable",
+      electoralCollegeEligibility: "not_applicable",
+      election2Eligibility: "not_applicable",
+      election2VotingStatus: "not_applicable",
+      verificationStatus: "verified",
+      courseLabel: undefined,
+      phoneNumber: mockPhone(person.studentId),
+      nationalIdLast4: last4(nationalId),
+      voterStatus: votedElection1 ? "voted" : "not_voted",
+      accessibility: person.accessibility
+        ? {
+            declared: true,
+            categories: person.accessibility.categories,
+            accommodations: person.accessibility.accommodations,
+            notes: person.accessibility.notes,
+            updatedAt: now,
+            consentToShareOperationally: true,
+          }
+        : emptyAccessibility(),
+      createdAt: now,
+      updatedAt: now,
+    };
+  });
 }
 
 export function electoralUnitId(input: {
@@ -552,4 +568,181 @@ export function buildIncidents(): IncidentRecord[] {
       reference: "INC-WE-001",
     },
   ];
+}
+
+type PortalSeed = {
+  studentId: string;
+  status: VoterRegistrationStatus;
+  step?: number;
+  phoneVerified?: boolean;
+  unitPending?: boolean;
+  reference?: string;
+  rejectionReason?: string | null;
+  election2?: Election2VoterStatus | null;
+  submittedAt?: string | null;
+};
+
+const PORTAL_SEEDS: PortalSeed[] = [
+  { studentId: "24/01211", status: "APPROVED_ELIGIBLE", phoneVerified: true, reference: "VR-2026-A12F11", election2: "AWAITING_DELEGATE_OUTCOME" },
+  { studentId: "24/01301", status: "PENDING_VERIFICATION", phoneVerified: true, reference: "VR-2026-B13C01" },
+  { studentId: "24/01401", status: "REQUIRES_CORRECTION", phoneVerified: true, reference: "VR-2026-C14D01" },
+  { studentId: "24/02101", status: "APPROVED_ELIGIBLE", phoneVerified: true, reference: "VR-2026-D21E01", election2: "AWAITING_DELEGATE_OUTCOME" },
+  { studentId: "24/03401", status: "REJECTED", phoneVerified: true, reference: "VR-2026-E34F01", rejectionReason: "Authorized mock review recorded a rejection. This student cannot self-approve eligibility." },
+  { studentId: "24/03301", status: "VERIFIED", phoneVerified: true, reference: "VR-2026-F33A01" },
+  { studentId: "24/04302", status: "APPROVED_ELIGIBLE", phoneVerified: true, reference: "VR-2026-G43B02" },
+  { studentId: "24/03101", status: "APPROVED_ELIGIBLE", phoneVerified: true, reference: "VR-2026-H31C01", election2: "ELIGIBLE_DELEGATE" },
+  { studentId: "24/01201", status: "APPROVED_ELIGIBLE", phoneVerified: true, reference: "VR-2026-I12D01", election2: "NOT_ELECTED" },
+  { studentId: "24/01202", status: "APPROVED_ELIGIBLE", phoneVerified: true, reference: "VR-2026-J12E02", election2: "PENDING_CONFIRMATION" },
+  { studentId: "24/04101", status: "APPROVED_ELIGIBLE", phoneVerified: true, reference: "VR-2026-K41F01", election2: "UNDER_REVIEW" },
+  { studentId: "24/01901", status: "APPROVED_ELIGIBLE", phoneVerified: true, reference: "VR-2026-L19G01", unitPending: true },
+  { studentId: "24/01313", status: "DRAFT", step: 3, phoneVerified: true },
+];
+
+function historyFor(studentId: string, rows: Array<{ kind: VoterHistoryEvent["kind"]; title: string; detail: string; at?: string }>): VoterHistoryEvent[] {
+  return rows.map((row, index) => ({
+    id: `vh-${studentId.replace("/", "-")}-${index + 1}`,
+    studentId,
+    kind: row.kind,
+    title: row.title,
+    detail: row.detail,
+    at: row.at ?? now,
+  }));
+}
+
+export function buildVoterPortalSeed(): {
+  profiles: VoterProfile[];
+  history: VoterHistoryEvent[];
+  notifications: VoterNotification[];
+  corrections: AcademicCorrectionRequest[];
+} {
+  const people = new Map(SEED_PEOPLE.map((person) => [person.studentId, person]));
+  const profiles: VoterProfile[] = PORTAL_SEEDS.map((seed) => {
+    const person = people.get(seed.studentId)!;
+    const submitted = seed.status !== "DRAFT";
+    return {
+      id: `vp-${seed.studentId.replace("/", "-")}`,
+      studentId: seed.studentId,
+      registrationReference: seed.reference ?? null,
+      registrationStatus: seed.status,
+      registrationDate: submitted ? "2026-09-16T09:00:00.000Z" : null,
+      submittedAt: submitted ? (seed.submittedAt ?? "2026-09-16T09:00:00.000Z") : null,
+      phoneNumber: mockPhone(seed.studentId),
+      phoneVerifiedAt: seed.phoneVerified === false ? null : "2026-09-16T08:40:00.000Z",
+      identityDocumentType: "NATIONAL_ID",
+      identityDocumentLast4: last4(mockNationalId(seed.studentId)),
+      electoralUnitId: seed.unitPending ? null : electoralUnitId({
+        campusId: person.campusId,
+        schoolId: person.schoolId,
+        departmentId: person.departmentId,
+        unitKind:
+          person.campusId === "campus-ruaraka"
+            ? "DEPARTMENT"
+            : person.campusId === "campus-western"
+              ? "SCHOOL"
+              : "CAMPUS_WIDE",
+      }),
+      electoralUnitPending: Boolean(seed.unitPending),
+      simulatedElection2Status: seed.election2 ?? null,
+      draftStep: seed.step ?? (submitted ? 5 : 1),
+      rejectionReason: seed.rejectionReason ?? null,
+      createdAt: "2026-09-15T12:00:00.000Z",
+      updatedAt: now,
+    };
+  });
+
+  const history: VoterHistoryEvent[] = [
+    ...historyFor("24/01211", [
+      { kind: "REGISTRATION_STARTED", title: "Registration started", detail: "Student identity matched the shared student record." },
+      { kind: "PHONE_VERIFIED", title: "Phone verified", detail: "A simulated OTP confirmed the mobile number on file." },
+      { kind: "ACADEMIC_VERIFIED", title: "Academic information verified", detail: "Campus, school and department were taken from the student record." },
+      { kind: "REGISTRATION_SUBMITTED", title: "Registration submitted", detail: "Reference VR-2026-A12F11 was issued." },
+      { kind: "ELIGIBILITY_DECISION", title: "Approved as eligible elector", detail: "A mock Commission decision approved Election 1 eligibility. Ballot choices are not recorded here." },
+      { kind: "ACCESSIBILITY_UPDATED", title: "Accessibility preferences saved", detail: "Visual assistance preferences were saved with operational consent." },
+    ]),
+    ...historyFor("24/02101", [
+      { kind: "REGISTRATION_SUBMITTED", title: "Registration submitted", detail: "Reference VR-2026-D21E01 was issued." },
+      { kind: "ELIGIBILITY_DECISION", title: "Approved as eligible elector", detail: "Mock verification approved Election 1 eligibility." },
+      { kind: "ELECTION1_PARTICIPATION", title: "Election 1 participation updated", detail: "Participation status changed to Vote Cast. Candidate selections are not stored in this history." },
+    ]),
+    ...historyFor("24/01401", [
+      { kind: "REGISTRATION_SUBMITTED", title: "Registration submitted", detail: "Reference VR-2026-C14D01 was issued." },
+      { kind: "CORRECTION_REQUESTED", title: "Academic correction requested", detail: "The student asked the Commission to review academic mapping. The student cannot edit verified fields." },
+    ]),
+    ...historyFor("24/03401", [
+      { kind: "REGISTRATION_SUBMITTED", title: "Registration submitted", detail: "Reference VR-2026-E34F01 was issued." },
+      { kind: "ELIGIBILITY_DECISION", title: "Registration rejected", detail: "An authorized mock decision rejected this application. The student cannot reverse that decision here." },
+    ]),
+    ...historyFor("24/03101", [
+      { kind: "ELIGIBILITY_DECISION", title: "Approved as eligible elector", detail: "Mock Election 1 eligibility approved." },
+      { kind: "DELEGATE_OUTCOME", title: "Delegate outcome recorded", detail: "Simulated Election 1 outcome: pending inclusion was later confirmed on a mock Electoral College view. Ballot choices are not shown." },
+      { kind: "ELECTORAL_COLLEGE_INCLUSION", title: "Electoral College Register", detail: "Simulated inclusion on the approved Electoral College Register." },
+      { kind: "ELECTION2_ELIGIBILITY", title: "Election 2 eligibility", detail: "Status set to Eligible Delegate Elector from the register, not from voter or candidate registration alone." },
+    ]),
+    ...historyFor("24/01201", [
+      { kind: "DELEGATE_OUTCOME", title: "Delegate outcome recorded", detail: "Simulated Election 1 outcome: not elected. Election 2 eligibility was not granted." },
+      { kind: "ELECTION2_ELIGIBILITY", title: "Election 2 eligibility", detail: "Status set to Not Elected — Not Eligible." },
+    ]),
+    ...historyFor("24/01313", [
+      { kind: "REGISTRATION_STARTED", title: "Registration started", detail: "Draft saved after phone verification. The student can continue later." },
+      { kind: "PHONE_VERIFIED", title: "Phone verified", detail: "Simulated OTP completed for the number on the student record." },
+    ]),
+  ];
+
+  const notifications: VoterNotification[] = [
+    {
+      id: "vn-01211-1",
+      studentId: "24/01211",
+      title: "You are an approved eligible elector",
+      body: "Your voter registration VR-2026-A12F11 was approved for Election 1. Vote only at your campus polling station.",
+      href: "/voter/eligibility",
+      read: false,
+      createdAt: "2026-09-17T08:00:00.000Z",
+    },
+    {
+      id: "vn-01401-1",
+      studentId: "24/01401",
+      title: "Your registration needs a correction",
+      body: "An authorized reviewer asked for an academic correction. You cannot change the verified record yourself.",
+      href: "/voter/registration",
+      read: false,
+      createdAt: "2026-09-17T09:00:00.000Z",
+    },
+    {
+      id: "vn-01301-1",
+      studentId: "24/01301",
+      title: "Verification is in progress",
+      body: "Your registration was submitted and is pending verification. This does not yet make you an eligible elector.",
+      href: "/voter/registration",
+      read: true,
+      createdAt: "2026-09-16T12:00:00.000Z",
+    },
+    {
+      id: "vn-01313-1",
+      studentId: "24/01313",
+      title: "Your draft was saved",
+      body: "You can continue voter registration from Academic Information Review.",
+      href: "/voter/register",
+      read: false,
+      createdAt: now,
+    },
+  ];
+
+  const corrections: AcademicCorrectionRequest[] = [
+    {
+      id: "acr-01401",
+      studentId: "24/01401",
+      voterProfileId: "vp-24-01401",
+      reason: "The school shown is not the school on my admission letter.",
+      proposedCampusId: "campus-ruaraka",
+      proposedSchoolId: "school-ru-eass",
+      proposedDepartmentId: "dept-ru-eass-eps",
+      proposedProgrammeId: null,
+      status: "PENDING",
+      submittedAt: "2026-09-16T14:00:00.000Z",
+      decidedAt: null,
+      decidedBy: null,
+    },
+  ];
+
+  return { profiles, history, notifications, corrections };
 }

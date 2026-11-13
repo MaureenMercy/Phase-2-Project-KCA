@@ -17,6 +17,7 @@ export function stripStorePhotos(store: AppStore): AppStore {
   return {
     ...store,
     auditLog: store.auditLog.slice(0, MAX_AUDIT),
+    voterHistory: (store.voterHistory ?? []).slice(0, MAX_AUDIT),
     candidates: store.candidates.map(({ photo: _photo, ...rest }) => rest),
     delegateCandidates: store.delegateCandidates.map(({ photo: _photo, ...rest }) => ({
       ...rest,
@@ -28,6 +29,7 @@ export function stripStorePhotos(store: AppStore): AppStore {
         photo: "",
       }),
     ),
+    studentElectors: store.studentElectors.map(({ nationalIdCipher: _cipher, ...rest }) => rest),
   };
 }
 
@@ -64,6 +66,7 @@ function photoIndex(seed: AppStore): PhotoIndex {
 
 export function restoreStorePhotos(parsed: AppStore, seed: AppStore): AppStore {
   const photos = photoIndex(seed);
+  const identity = new Map(seed.studentElectors.map((item) => [item.studentId, item.nationalIdCipher]));
   return {
     ...seed,
     ...parsed,
@@ -84,6 +87,15 @@ export function restoreStorePhotos(parsed: AppStore, seed: AppStore): AppStore {
         runningMatePhoto: item.runningMatePhoto || seeded?.runningMatePhoto,
       };
     }),
+    studentElectors: (parsed.studentElectors ?? seed.studentElectors).map((item) => ({
+      ...item,
+      nationalIdCipher: item.nationalIdCipher || identity.get(item.studentId),
+    })),
+    voterProfiles: parsed.voterProfiles ?? seed.voterProfiles,
+    voterHistory: parsed.voterHistory ?? seed.voterHistory,
+    voterNotifications: parsed.voterNotifications ?? seed.voterNotifications,
+    academicCorrectionRequests: parsed.academicCorrectionRequests ?? seed.academicCorrectionRequests,
+    identityDocumentPolicy: parsed.identityDocumentPolicy ?? seed.identityDocumentPolicy,
   };
 }
 

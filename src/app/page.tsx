@@ -39,6 +39,7 @@ export default async function LandingPage() {
           Commission Login
         </Link>
         <div className="mt-6 flex flex-wrap justify-center gap-4 text-xs tracking-[0.16em] text-gold/90 uppercase">
+          <Link href="/voter">Voter Portal</Link>
           <Link href="/elector">Election 1 desk</Link>
           <Link href="/vote">Election 2 desk</Link>
           <Link href="/candidate">Candidate Portal</Link>

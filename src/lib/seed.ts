@@ -28,7 +28,9 @@ import {
   buildStudentElectors,
   buildStudentMappings,
   buildVoterExceptions,
+  buildVoterPortalSeed,
 } from "@/lib/seed-electorate";
+import { DEFAULT_IDENTITY_DOCUMENT_POLICY } from "@/lib/identity";
 
 export { CYCLE_ID, ELECTION_1_ID, ELECTION_2_ID } from "@/lib/seed-electorate";
 
@@ -468,6 +470,7 @@ export function createInitialStore(): AppStore {
   );
   const delegateApplications = buildDelegateApplications(DELEGATE_CANDIDATES);
   const councilApplications = buildCouncilApplications();
+  const voterPortal = buildVoterPortalSeed();
 
   return {
     version: STORE_VERSION,
@@ -642,6 +645,11 @@ export function createInitialStore(): AppStore {
       },
     ],
     voterExceptions: buildVoterExceptions(),
+    voterProfiles: voterPortal.profiles,
+    voterHistory: voterPortal.history,
+    voterNotifications: voterPortal.notifications,
+    academicCorrectionRequests: voterPortal.corrections,
+    identityDocumentPolicy: DEFAULT_IDENTITY_DOCUMENT_POLICY,
     accessibilityReadiness: POLLING_STATIONS.map((station) => ({
       campusId: station.campusId,
       stationId: station.id,
@@ -700,6 +708,12 @@ export function createInitialStore(): AppStore {
         topic: "Western / Kisumu electoral-unit mapping",
         status: "needs_confirmation",
         detail: "Part 1 refers to department-based Electoral Colleges at Western. The signed academic reference lists Western schools without departments, so this prototype maps three school-level units and does not invent departments.",
+      },
+      {
+        id: "identity-document-policy",
+        topic: "Voter identity documents",
+        status: "needs_confirmation",
+        detail: "Only Kenyan National ID is enabled for the Voter Portal prototype. An alternative-document policy has not been supplied and is not invented here.",
       },
     ],
     assignments: createInitialAssignments(),

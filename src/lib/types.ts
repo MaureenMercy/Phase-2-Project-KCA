@@ -376,10 +376,113 @@ export type StudentElector = {
   election2VotingStatus: "not_applicable" | "not_voted" | "voted";
   verificationStatus: "unverified" | "verified" | "mismatch";
   courseLabel?: string;
+  phoneNumber?: string;
+  nationalIdCipher?: string;
+  nationalIdLast4?: string;
   voterStatus: "not_voted" | "voted";
   accessibility: AccessibilityProfile;
   createdAt: string;
   updatedAt: string;
+};
+
+export const VOTER_REGISTRATION_STATUSES = [
+  "DRAFT",
+  "SUBMITTED",
+  "PENDING_VERIFICATION",
+  "VERIFIED",
+  "REQUIRES_CORRECTION",
+  "APPROVED_ELIGIBLE",
+  "REJECTED",
+] as const;
+
+export type VoterRegistrationStatus = (typeof VOTER_REGISTRATION_STATUSES)[number];
+
+export const ELECTION2_VOTER_STATUSES = [
+  "AWAITING_DELEGATE_OUTCOME",
+  "NOT_ELECTED",
+  "PENDING_CONFIRMATION",
+  "ELIGIBLE_DELEGATE",
+  "UNDER_REVIEW",
+] as const;
+
+export type Election2VoterStatus = (typeof ELECTION2_VOTER_STATUSES)[number];
+
+export const VOTER_HISTORY_KINDS = [
+  "REGISTRATION_STARTED",
+  "PHONE_VERIFIED",
+  "ACADEMIC_VERIFIED",
+  "REGISTRATION_SUBMITTED",
+  "ELIGIBILITY_DECISION",
+  "CORRECTION_REQUESTED",
+  "CORRECTION_APPROVED",
+  "EXCEPTION_CASE",
+  "ELECTION1_PARTICIPATION",
+  "DELEGATE_OUTCOME",
+  "ELECTORAL_COLLEGE_INCLUSION",
+  "ELECTION2_ELIGIBILITY",
+  "ACCESSIBILITY_UPDATED",
+  "ACCESSIBILITY_WITHDRAWN",
+] as const;
+
+export type VoterHistoryKind = (typeof VOTER_HISTORY_KINDS)[number];
+
+export type IdentityDocumentPolicy = {
+  allowedTypes: { id: string; label: string; enabled: boolean }[];
+  pendingPolicyNote: string;
+};
+
+export type VoterProfile = {
+  id: string;
+  studentId: string;
+  registrationReference: string | null;
+  registrationStatus: VoterRegistrationStatus;
+  registrationDate: string | null;
+  submittedAt: string | null;
+  phoneNumber: string;
+  phoneVerifiedAt: string | null;
+  identityDocumentType: string;
+  identityDocumentLast4: string;
+  electoralUnitId: string | null;
+  electoralUnitPending: boolean;
+  simulatedElection2Status: Election2VoterStatus | null;
+  draftStep: number;
+  rejectionReason: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type AcademicCorrectionRequest = {
+  id: string;
+  studentId: string;
+  voterProfileId: string;
+  reason: string;
+  proposedCampusId: string | null;
+  proposedSchoolId: string | null;
+  proposedDepartmentId: string | null;
+  proposedProgrammeId: string | null;
+  status: "PENDING" | "APPROVED" | "REJECTED";
+  submittedAt: string;
+  decidedAt: string | null;
+  decidedBy: string | null;
+};
+
+export type VoterHistoryEvent = {
+  id: string;
+  studentId: string;
+  kind: VoterHistoryKind;
+  title: string;
+  detail: string;
+  at: string;
+};
+
+export type VoterNotification = {
+  id: string;
+  studentId: string;
+  title: string;
+  body: string;
+  href: string;
+  read: boolean;
+  createdAt: string;
 };
 
 export type StudentElectoralMapping = {
@@ -793,6 +896,11 @@ export type AppStore = {
   agentAttendance: AgentAttendance[];
   agentObservations: AgentObservation[];
   voterExceptions: VoterException[];
+  voterProfiles: VoterProfile[];
+  voterHistory: VoterHistoryEvent[];
+  voterNotifications: VoterNotification[];
+  academicCorrectionRequests: AcademicCorrectionRequest[];
+  identityDocumentPolicy: IdentityDocumentPolicy;
   accessibilityReadiness: AccessibilityReadiness[];
   resultsByElection: ElectionResultRecord[];
   namingDiscrepancies: { officeId: string; note: string }[];
