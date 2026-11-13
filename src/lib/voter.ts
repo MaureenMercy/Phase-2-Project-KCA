@@ -248,8 +248,9 @@ export function voterDashboardModel(store: AppStore, student: StudentElector, pr
   const electionTwo = election2(store);
   const election2Status = deriveElection2Status(store, student, profile);
 
-  const { nationalIdCipher, ...publicStudent } = student;
+  const { nationalIdCipher, nationalIdEncrypted, ...publicStudent } = student;
   void nationalIdCipher;
+  void nationalIdEncrypted;
   return {
     student: publicStudent,
     profile,

@@ -1,13 +1,17 @@
-import { last4, mockNationalId, mockPhone } from "@/lib/identity";
+import { last4, mockNationalId, mockPhone as voterMockPhone } from "@/lib/identity";
 import { portraitDataUri } from "@/lib/portraits";
+import { attachMockIdentity, mockPhone } from "@/lib/student-identity";
 import type {
   AccessibilityCategory,
   AcademicCorrectionRequest,
+  AgentInvitation,
+  AgentNotification,
   AgentRecord,
   CandidateApplication,
   DelegateCandidate,
   Election2VoterStatus,
   IncidentRecord,
+  ObservationInstruction,
   StudentElector,
   StudentElectoralMapping,
   VoterException,
@@ -93,6 +97,14 @@ export const SEED_PEOPLE: SeedPerson[] = [
   { studentId: "24/04201", fullName: "Tony Kipchirchir", gender: "M", campusId: "campus-kitengela", schoolId: "school-kt-tech", departmentId: null, candidate: true },
   { studentId: "24/04301", fullName: "Agnes Achieng Onyango", gender: "F", campusId: "campus-kitengela", schoolId: "school-kt-ptti", departmentId: null, candidate: true },
   { studentId: "24/04302", fullName: "Martin Wekesa Barasa", gender: "M", campusId: "campus-kitengela", schoolId: "school-kt-bus", departmentId: null, accessibility: { categories: ["visual", "mobility"], accommodations: ["Large text", "Accessible polling area"], notes: "Combined visual and mobility assistance." } },
+  { studentId: "24/05101", fullName: "Caroline Njeri Otieno", gender: "F", campusId: "campus-town", schoolId: "school-tn-bus", departmentId: null },
+  { studentId: "24/05102", fullName: "Dennis Kiprono Langat", gender: "M", campusId: "campus-ruaraka", schoolId: "school-ru-tech", departmentId: "dept-ru-tech-sdis" },
+  { studentId: "24/05103", fullName: "Faith Achieng Odhiambo", gender: "F", campusId: "campus-ruaraka", schoolId: "school-ru-bus", departmentId: "dept-ru-bus-bam" },
+  { studentId: "24/05104", fullName: "Brian Otieno Wekesa", gender: "M", campusId: "campus-kitengela", schoolId: "school-kt-bus", departmentId: null },
+  { studentId: "24/05105", fullName: "Lucy Wanjiku Maina", gender: "F", campusId: "campus-western", schoolId: "school-we-bus", departmentId: null },
+  { studentId: "24/05106", fullName: "Kevin Mutua Mwangi", gender: "M", campusId: "campus-town", schoolId: "school-tn-tech", departmentId: null },
+  { studentId: "24/05107", fullName: "Pauline Chebet Kosgei", gender: "F", campusId: "campus-ruaraka", schoolId: "school-ru-eass", departmentId: "dept-ru-eass-eps" },
+  { studentId: "24/05108", fullName: "Daniel Omondi Okello", gender: "M", campusId: "campus-kitengela", schoolId: "school-kt-tech", departmentId: null },
 ];
 
 function emptyAccessibility(): StudentElector["accessibility"] {
@@ -111,7 +123,7 @@ export function buildStudentElectors(): StudentElector[] {
     const nationalId = mockNationalId(person.studentId);
     const votedElection1 = person.studentId === "24/02101";
     const ineligibleVoter = person.studentId === "24/03401";
-    return {
+    return attachMockIdentity({
       id: `st-${person.studentId.replace("/", "-")}`,
       studentId: person.studentId,
       fullName: person.fullName,
@@ -131,7 +143,7 @@ export function buildStudentElectors(): StudentElector[] {
       election2VotingStatus: "not_applicable",
       verificationStatus: "verified",
       courseLabel: undefined,
-      phoneNumber: mockPhone(person.studentId),
+      phoneNumber: voterMockPhone(person.studentId),
       nationalIdLast4: last4(nationalId),
       voterStatus: votedElection1 ? "voted" : "not_voted",
       accessibility: person.accessibility
@@ -146,7 +158,7 @@ export function buildStudentElectors(): StudentElector[] {
         : emptyAccessibility(),
       createdAt: now,
       updatedAt: now,
-    };
+    });
   });
 }
 
@@ -330,58 +342,458 @@ export function buildCouncilApplications(): CandidateApplication[] {
   });
 }
 
+function agentPhoto(studentId: string) {
+  const person = SEED_PEOPLE.find((item) => item.studentId === studentId);
+  return portraitDataUri(person?.fullName ?? studentId, hueFrom(studentId));
+}
+
+function seedAgent(input: {
+  id: string;
+  code: string;
+  studentId: string;
+  candidateApplicationId: string;
+  candidateStudentId: string;
+  candidateName: string;
+  candidatePosition: string;
+  accreditationStatus: AgentRecord["accreditationStatus"];
+  applicationStatus: AgentRecord["applicationStatus"];
+  invitationId: string;
+  invitationReference: string;
+  stationId: string;
+  campusId: string;
+  accreditedAt: string | null;
+  accreditedBy: string | null;
+  decisionNote?: string;
+}): AgentRecord {
+  const person = SEED_PEOPLE.find((item) => item.studentId === input.studentId)!;
+  const accredited = input.accreditationStatus === "ACCREDITED";
+  return {
+    id: input.id,
+    agentCode: input.code,
+    studentId: input.studentId,
+    fullName: person.fullName,
+    registrationNumber: input.studentId,
+    passwordHash: DEMO_PASSWORD_HASH,
+    phone: mockPhone(person.studentId),
+    phoneVerifiedAt: now,
+    invitationId: input.invitationId,
+    invitationReference: input.invitationReference,
+    applicationReference: `AGA-${input.code.replace("AG-", "")}`,
+    applicationStatus: input.applicationStatus,
+    candidateApplicationId: input.candidateApplicationId,
+    candidateStudentId: input.candidateStudentId,
+    candidateName: input.candidateName,
+    candidatePosition: input.candidatePosition,
+    candidatePhoto: agentPhoto(input.candidateStudentId),
+    electionId: ELECTION_2_ID,
+    nominationStatus: accredited || input.applicationStatus !== "DRAFT" ? "ACTIVATED" : "NOMINATED",
+    accreditationStatus: input.accreditationStatus,
+    accreditationReference: accredited || input.accreditationStatus === "SUSPENDED" || input.accreditationStatus === "REVOKED"
+      ? `ACC-${input.code}`
+      : null,
+    requestedCampusId: input.campusId,
+    requestedStationId: input.stationId,
+    assignedCampusId: accredited || input.accreditationStatus === "SUSPENDED" ? input.campusId : null,
+    assignedStationId: accredited || input.accreditationStatus === "SUSPENDED" ? input.stationId : null,
+    permittedStationIds: accredited || input.accreditationStatus === "SUSPENDED" ? [input.stationId] : [],
+    accessInstructions: accredited
+      ? "Check in only at your assigned campus polling station on an authorised Commission computer. Do not vote, campaign or handle ballots."
+      : "Station access is granted only after the Electoral Commission accredits this application.",
+    conductAcknowledged: true,
+    accuracyConfirmed: true,
+    privacyAcknowledged: true,
+    correctionRequest: null,
+    correctionRequestAt: null,
+    submittedAt: now,
+    accreditedAt: input.accreditedAt,
+    accreditedBy: input.accreditedBy,
+    decisionNote: input.decisionNote ?? null,
+    createdAt: now,
+    updatedAt: now,
+  };
+}
+
 export function buildAgents(): AgentRecord[] {
   return [
-    {
+    seedAgent({
       id: "agent-001",
-      agentCode: "AG-001",
-      fullName: "Caroline Njeri Otieno",
-      registrationNumber: "23/08801",
-      passwordHash: DEMO_PASSWORD_HASH,
+      code: "AG-001",
+      studentId: "24/05101",
       candidateApplicationId: "app-cab-si-1",
       candidateStudentId: "24/03102",
       candidateName: "Jane Auma Otieno",
-      electionId: ELECTION_2_ID,
-      nominationStatus: "ACTIVATED",
+      candidatePosition: "Special Interests Secretary",
       accreditationStatus: "ACCREDITED",
-      permittedStationIds: ["ps-town"],
+      applicationStatus: "APPROVED",
+      invitationId: "inv-used-001",
+      invitationReference: "INV-USED-2N6R",
+      stationId: "ps-town",
+      campusId: "campus-town",
       accreditedAt: "2026-09-14T12:00:00.000Z",
       accreditedBy: "Prof. Amina Wanjiku",
-      createdAt: now,
-    },
-    {
+    }),
+    seedAgent({
       id: "agent-002",
-      agentCode: "AG-002",
-      fullName: "Dennis Kiprono Langat",
-      registrationNumber: "23/08802",
-      passwordHash: DEMO_PASSWORD_HASH,
+      code: "AG-002",
+      studentId: "24/05102",
       candidateApplicationId: "app-cab-sg-1",
       candidateStudentId: "24/01302",
       candidateName: "Cynthia Wairimu Njoroge",
-      electionId: ELECTION_2_ID,
-      nominationStatus: "ACTIVATED",
+      candidatePosition: "Secretary General",
       accreditationStatus: "PENDING",
-      permittedStationIds: ["ps-ruaraka"],
+      applicationStatus: "SUBMITTED",
+      invitationId: "inv-pending-002",
+      invitationReference: "INV-PND-3C8Q",
+      stationId: "ps-ruaraka",
+      campusId: "campus-ruaraka",
       accreditedAt: null,
       accreditedBy: null,
-      createdAt: now,
-    },
-    {
+    }),
+    seedAgent({
       id: "agent-003",
-      agentCode: "AG-003",
-      fullName: "Faith Achieng Odhiambo",
-      registrationNumber: "23/08803",
-      passwordHash: DEMO_PASSWORD_HASH,
+      code: "AG-003",
+      studentId: "24/05103",
       candidateApplicationId: "app-cab-pr-2",
       candidateStudentId: "24/01313",
       candidateName: "Samuel Kariuki Maina",
-      electionId: ELECTION_2_ID,
-      nominationStatus: "ACTIVATED",
+      candidatePosition: "President + Vice President",
       accreditationStatus: "ACCREDITED",
-      permittedStationIds: ["ps-ruaraka"],
+      applicationStatus: "APPROVED",
+      invitationId: "inv-used-003",
+      invitationReference: "INV-USED-8M4K",
+      stationId: "ps-ruaraka",
+      campusId: "campus-ruaraka",
       accreditedAt: "2026-09-14T12:10:00.000Z",
       accreditedBy: "Dr. David Omondi",
+    }),
+    seedAgent({
+      id: "agent-004",
+      code: "AG-004",
+      studentId: "24/05104",
+      candidateApplicationId: "app-cab-sp-1",
+      candidateStudentId: "24/01311",
+      candidateName: "Daniel Mutiso Wambua",
+      candidatePosition: "Sports & Entertainment Secretary",
+      accreditationStatus: "SUSPENDED",
+      applicationStatus: "APPROVED",
+      invitationId: "inv-used-004",
+      invitationReference: "INV-USED-5T7B",
+      stationId: "ps-kitengela",
+      campusId: "campus-kitengela",
+      accreditedAt: "2026-09-14T12:20:00.000Z",
+      accreditedBy: "Prof. Amina Wanjiku",
+      decisionNote: "Temporarily suspended pending a station-conduct review. Observation access is withdrawn.",
+    }),
+    seedAgent({
+      id: "agent-005",
+      code: "AG-005",
+      studentId: "24/05105",
+      candidateApplicationId: "app-cab-ac-1",
+      candidateStudentId: "24/02101",
+      candidateName: "Faith Wambui Gitau",
+      candidatePosition: "Academic Secretary",
+      accreditationStatus: "REVOKED",
+      applicationStatus: "REJECTED",
+      invitationId: "inv-used-005",
+      invitationReference: "INV-USED-1H9D",
+      stationId: "ps-western",
+      campusId: "campus-western",
+      accreditedAt: "2026-09-14T12:30:00.000Z",
+      accreditedBy: "Prof. Amina Wanjiku",
+      decisionNote: "Accreditation revoked. This agent may not observe or report for the remainder of the election.",
+    }),
+  ];
+}
+
+function invitation(input: {
+  id: string;
+  reference: string;
+  candidateApplicationId: string;
+  candidateStudentId: string;
+  candidateName: string;
+  candidatePosition: string;
+  invitedStudentId: string;
+  status: AgentInvitation["status"];
+  expiresAt: string;
+  usedAt?: string | null;
+  usedByApplicationId?: string | null;
+  revokedAt?: string | null;
+  revokedReason?: string | null;
+}): AgentInvitation {
+  const invited = SEED_PEOPLE.find((item) => item.studentId === input.invitedStudentId);
+  return {
+    id: input.id,
+    reference: input.reference,
+    candidateApplicationId: input.candidateApplicationId,
+    candidateStudentId: input.candidateStudentId,
+    candidateName: input.candidateName,
+    candidatePosition: input.candidatePosition,
+    candidatePhoto: agentPhoto(input.candidateStudentId),
+    electionId: ELECTION_2_ID,
+    invitedStudentId: input.invitedStudentId,
+    invitedFullName: invited?.fullName ?? input.invitedStudentId,
+    status: input.status,
+    expiresAt: input.expiresAt,
+    createdAt: "2026-09-12T09:00:00.000Z",
+    usedAt: input.usedAt ?? null,
+    usedByApplicationId: input.usedByApplicationId ?? null,
+    revokedAt: input.revokedAt ?? null,
+    revokedReason: input.revokedReason ?? null,
+  };
+}
+
+export function buildAgentInvitations(): AgentInvitation[] {
+  return [
+    invitation({
+      id: "inv-used-001",
+      reference: "INV-USED-2N6R",
+      candidateApplicationId: "app-cab-si-1",
+      candidateStudentId: "24/03102",
+      candidateName: "Jane Auma Otieno",
+      candidatePosition: "Special Interests Secretary",
+      invitedStudentId: "24/05101",
+      status: "USED",
+      expiresAt: "2026-12-31T23:59:00.000Z",
+      usedAt: now,
+      usedByApplicationId: "agent-001",
+    }),
+    invitation({
+      id: "inv-open-006",
+      reference: "INV-OPEN-7K2M",
+      candidateApplicationId: "app-cab-si-1",
+      candidateStudentId: "24/03102",
+      candidateName: "Jane Auma Otieno",
+      candidatePosition: "Special Interests Secretary",
+      invitedStudentId: "24/05106",
+      status: "OPEN",
+      expiresAt: "2026-12-31T23:59:00.000Z",
+    }),
+    invitation({
+      id: "inv-pending-002",
+      reference: "INV-PND-3C8Q",
+      candidateApplicationId: "app-cab-sg-1",
+      candidateStudentId: "24/01302",
+      candidateName: "Cynthia Wairimu Njoroge",
+      candidatePosition: "Secretary General",
+      invitedStudentId: "24/05102",
+      status: "USED",
+      expiresAt: "2026-12-31T23:59:00.000Z",
+      usedAt: now,
+      usedByApplicationId: "agent-002",
+    }),
+    invitation({
+      id: "inv-used-003",
+      reference: "INV-USED-8M4K",
+      candidateApplicationId: "app-cab-pr-2",
+      candidateStudentId: "24/01313",
+      candidateName: "Samuel Kariuki Maina",
+      candidatePosition: "President + Vice President",
+      invitedStudentId: "24/05103",
+      status: "USED",
+      expiresAt: "2026-12-31T23:59:00.000Z",
+      usedAt: now,
+      usedByApplicationId: "agent-003",
+    }),
+    invitation({
+      id: "inv-used-004",
+      reference: "INV-USED-5T7B",
+      candidateApplicationId: "app-cab-sp-1",
+      candidateStudentId: "24/01311",
+      candidateName: "Daniel Mutiso Wambua",
+      candidatePosition: "Sports & Entertainment Secretary",
+      invitedStudentId: "24/05104",
+      status: "USED",
+      expiresAt: "2026-12-31T23:59:00.000Z",
+      usedAt: now,
+      usedByApplicationId: "agent-004",
+    }),
+    invitation({
+      id: "inv-used-005",
+      reference: "INV-USED-1H9D",
+      candidateApplicationId: "app-cab-ac-1",
+      candidateStudentId: "24/02101",
+      candidateName: "Faith Wambui Gitau",
+      candidatePosition: "Academic Secretary",
+      invitedStudentId: "24/05105",
+      status: "USED",
+      expiresAt: "2026-12-31T23:59:00.000Z",
+      usedAt: now,
+      usedByApplicationId: "agent-005",
+    }),
+    invitation({
+      id: "inv-exp-007",
+      reference: "INV-EXP-9Q1C",
+      candidateApplicationId: "app-cab-sg-1",
+      candidateStudentId: "24/01302",
+      candidateName: "Cynthia Wairimu Njoroge",
+      candidatePosition: "Secretary General",
+      invitedStudentId: "24/05107",
+      status: "EXPIRED",
+      expiresAt: "2026-09-01T08:00:00.000Z",
+    }),
+    invitation({
+      id: "inv-rev-008",
+      reference: "INV-REV-4H8P",
+      candidateApplicationId: "app-cab-pr-2",
+      candidateStudentId: "24/01313",
+      candidateName: "Samuel Kariuki Maina",
+      candidatePosition: "President + Vice President",
+      invitedStudentId: "24/05108",
+      status: "REVOKED",
+      expiresAt: "2026-12-31T23:59:00.000Z",
+      revokedAt: "2026-09-16T10:00:00.000Z",
+      revokedReason: "Candidate withdrew this nomination before the student applied.",
+    }),
+    invitation({
+      id: "inv-unav-009",
+      reference: "INV-UNAV-5D3W",
+      candidateApplicationId: "app-cab-si-1",
+      candidateStudentId: "24/03102",
+      candidateName: "Jane Auma Otieno",
+      candidatePosition: "Special Interests Secretary",
+      invitedStudentId: "24/03401",
+      status: "UNAVAILABLE",
+      expiresAt: "2026-12-31T23:59:00.000Z",
+    }),
+    invitation({
+      id: "inv-open-01204",
+      reference: "INV-OPEN-8P4T",
+      candidateApplicationId: "app-cab-tr-1",
+      candidateStudentId: "24/01512",
+      candidateName: "Sarah Wanjiku Njeri",
+      candidatePosition: "Treasurer / Finance Secretary",
+      invitedStudentId: "24/01204",
+      status: "OPEN",
+      expiresAt: "2026-12-31T23:59:00.000Z",
+    }),
+  ];
+}
+
+export function buildAgentNotifications(): AgentNotification[] {
+  return [
+    {
+      id: "an-001",
+      agentId: "agent-001",
+      studentId: "24/05101",
+      title: "Accreditation approved",
+      body: "The Electoral Commission accredited you to observe for Jane Auma Otieno at Town Polling Station.",
+      href: "/agent/accreditation",
+      createdAt: "2026-09-14T12:05:00.000Z",
+      read: false,
+      kind: "accreditation",
+    },
+    {
+      id: "an-002",
+      agentId: "agent-001",
+      studentId: "24/05101",
+      title: "Station assignment",
+      body: "You are authorised to observe at Town Polling Station only.",
+      href: "/agent/station",
+      createdAt: "2026-09-14T12:06:00.000Z",
+      read: false,
+      kind: "station",
+    },
+    {
+      id: "an-003",
+      agentId: "agent-001",
+      studentId: "24/05101",
+      title: "Report received",
+      body: "Your Town station observation AGT-TN-001 has been received by the Commission.",
+      href: "/agent/reports",
+      createdAt: "2026-09-22T09:36:00.000Z",
+      read: false,
+      kind: "report",
+    },
+    {
+      id: "an-004",
+      agentId: "agent-002",
+      studentId: "24/05102",
+      title: "Application received",
+      body: "Your agent application AGA-002 is with the Electoral Commission. Accreditation is not automatic.",
+      href: "/agent/accreditation",
       createdAt: now,
+      read: false,
+      kind: "application",
+    },
+    {
+      id: "an-005",
+      agentId: "agent-004",
+      studentId: "24/05104",
+      title: "Accreditation suspended",
+      body: "Your accreditation has been suspended. Observation and check-in access is withdrawn until the Commission decides otherwise.",
+      href: "/agent/accreditation",
+      createdAt: "2026-09-20T08:00:00.000Z",
+      read: false,
+      kind: "accreditation",
+    },
+    {
+      id: "an-006",
+      agentId: "agent-005",
+      studentId: "24/05105",
+      title: "Accreditation revoked",
+      body: "Your accreditation was revoked. You cannot observe or submit reports for this election.",
+      href: "/agent/accreditation",
+      createdAt: "2026-09-20T08:10:00.000Z",
+      read: false,
+      kind: "accreditation",
+    },
+    {
+      id: "an-007",
+      agentId: "",
+      studentId: "24/05106",
+      title: "You have been nominated",
+      body: "Jane Auma Otieno nominated you as an election agent. Use invitation INV-OPEN-7K2M in the Agent Portal.",
+      href: "/agent/register",
+      createdAt: "2026-09-12T09:05:00.000Z",
+      read: false,
+      kind: "invitation",
+    },
+  ];
+}
+
+export function buildObservationInstructions(): ObservationInstruction[] {
+  return [
+    {
+      id: "ins-conduct",
+      title: "Agent Code of Conduct",
+      summary: "What accredited agents may and may not do at a polling station.",
+      body: [
+        "Accredited election agents observe on behalf of an approved SAKU Council candidate.",
+        "You may be present at your assigned polling station, record observations, and report irregularities to the Electoral Commission.",
+        "You must not campaign, canvass, handle ballots, assist a voter to choose, or interfere with Commission officers.",
+        "You must not photograph voter screens, voter identities, or completed ballots.",
+        "A nomination or an application does not make you accredited. Only a Commission decision does.",
+      ].join("\n\n"),
+      publishedAt: "2026-09-10T08:00:00.000Z",
+      downloadName: "saku-agent-code-of-conduct.txt",
+    },
+    {
+      id: "ins-station",
+      title: "Polling-station observation procedure",
+      summary: "Arrival, check-in, and how to raise a concern without disrupting voting.",
+      body: [
+        "Arrive at the assigned campus polling station with your student ID.",
+        "Check in through this portal only when you are physically at the authorised station.",
+        "Stay in the designated observation area. Do not enter the voting booth or operator desk.",
+        "If you see an irregularity, record it as an observation or incident report. Do not attempt to stop the election yourself.",
+        "Check out when you leave the station so the attendance record stays accurate.",
+      ].join("\n\n"),
+      publishedAt: "2026-09-10T08:05:00.000Z",
+      downloadName: "saku-agent-station-procedure.txt",
+    },
+    {
+      id: "ins-reporting",
+      title: "Incident reporting guide",
+      summary: "How to describe what you saw so the Commission can review it.",
+      body: [
+        "State the time, the station, and what you observed in plain language.",
+        "Attach a photograph or short video only of the surroundings or materials — never of a voter or a ballot face.",
+        "Submitting a report does not classify, escalate or close the Commission record. Those decisions belong to the Commission.",
+        "You can track whether your own report was received, is under review, needs more information, or has been closed.",
+        "You cannot see other agents’ reports or internal Commission discussions.",
+      ].join("\n\n"),
+      publishedAt: "2026-09-10T08:10:00.000Z",
+      downloadName: "saku-agent-incident-reporting.txt",
     },
   ];
 }
@@ -626,7 +1038,7 @@ export function buildVoterPortalSeed(): {
       registrationStatus: seed.status,
       registrationDate: submitted ? "2026-09-16T09:00:00.000Z" : null,
       submittedAt: submitted ? (seed.submittedAt ?? "2026-09-16T09:00:00.000Z") : null,
-      phoneNumber: mockPhone(seed.studentId),
+      phoneNumber: voterMockPhone(seed.studentId),
       phoneVerifiedAt: seed.phoneVerified === false ? null : "2026-09-16T08:40:00.000Z",
       identityDocumentType: "NATIONAL_ID",
       identityDocumentLast4: last4(mockNationalId(seed.studentId)),

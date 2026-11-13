@@ -1,4 +1,4 @@
-export const STORE_VERSION = 5;
+export const STORE_VERSION = 6;
 
 export const ELECTION_STAGES = [
   "REGISTRATION",
@@ -356,6 +356,14 @@ export type AccessibilityProfile = {
   consentToShareOperationally: boolean;
 };
 
+export const IDENTITY_DOCUMENT_TYPES = [
+  "NATIONAL_ID",
+  "PASSPORT",
+  "REFUGEE_ID",
+] as const;
+
+export type IdentityDocumentType = (typeof IDENTITY_DOCUMENT_TYPES)[number];
+
 export type StudentElector = {
   id: string;
   studentId: string;
@@ -366,6 +374,10 @@ export type StudentElector = {
   schoolId: string;
   departmentId: string | null;
   programId: string | null;
+  phone?: string;
+  identityDocumentType?: IdentityDocumentType;
+  nationalIdEncrypted?: string;
+  nationalIdLast4?: string;
   eligibilityStatus: "eligible" | "ineligible" | "pending";
   eligibilitySource: "mock_first_year_register" | "operator_enrollment";
   election1Eligibility: "eligible" | "ineligible" | "pending";
@@ -378,7 +390,6 @@ export type StudentElector = {
   courseLabel?: string;
   phoneNumber?: string;
   nationalIdCipher?: string;
-  nationalIdLast4?: string;
   voterStatus: "not_voted" | "voted";
   accessibility: AccessibilityProfile;
   createdAt: string;
@@ -751,22 +762,95 @@ export type CandidateConfigurationLock = {
   lockedBy: string | null;
 };
 
-export type AgentRecord = {
+export const AGENT_APPLICATION_STATUSES = [
+  "DRAFT",
+  "SUBMITTED",
+  "UNDER_REVIEW",
+  "APPROVED",
+  "REJECTED",
+] as const;
+
+export type AgentApplicationStatus = (typeof AGENT_APPLICATION_STATUSES)[number];
+
+export const AGENT_ACCREDITATION_STATUSES = [
+  "PENDING",
+  "ACCREDITED",
+  "DECLINED",
+  "SUSPENDED",
+  "REVOKED",
+] as const;
+
+export type AgentAccreditationStatus = (typeof AGENT_ACCREDITATION_STATUSES)[number];
+
+export const AGENT_INVITATION_STATUSES = [
+  "OPEN",
+  "USED",
+  "EXPIRED",
+  "REVOKED",
+  "UNAVAILABLE",
+] as const;
+
+export type AgentInvitationStatus = (typeof AGENT_INVITATION_STATUSES)[number];
+
+export type AgentInvitation = {
   id: string;
-  agentCode: string;
-  fullName: string;
-  registrationNumber: string;
-  passwordHash: string;
+  reference: string;
   candidateApplicationId: string;
   candidateStudentId: string;
   candidateName: string;
+  candidatePosition: string;
+  candidatePhoto: string;
+  electionId: string;
+  invitedStudentId: string;
+  invitedFullName: string;
+  status: AgentInvitationStatus;
+  expiresAt: string;
+  createdAt: string;
+  usedAt: string | null;
+  usedByApplicationId: string | null;
+  revokedAt: string | null;
+  revokedReason: string | null;
+};
+
+export type AgentRecord = {
+  id: string;
+  agentCode: string;
+  studentId: string;
+  fullName: string;
+  registrationNumber: string;
+  passwordHash: string;
+  phone: string;
+  phoneVerifiedAt: string | null;
+  invitationId: string | null;
+  invitationReference: string | null;
+  applicationReference: string;
+  applicationStatus: AgentApplicationStatus;
+  candidateApplicationId: string;
+  candidateStudentId: string;
+  candidateName: string;
+  candidatePosition: string;
+  candidatePhoto: string;
   electionId: string;
   nominationStatus: "NOMINATED" | "ACTIVATED";
-  accreditationStatus: "PENDING" | "ACCREDITED" | "DECLINED" | "SUSPENDED";
+  accreditationStatus: AgentAccreditationStatus;
+  accreditationReference: string | null;
+  requestedCampusId: string | null;
+  requestedStationId: string | null;
+  assignedCampusId: string | null;
+  assignedStationId: string | null;
   permittedStationIds: string[];
+  accessInstructions: string;
+  conductAcknowledged: boolean;
+  accuracyConfirmed: boolean;
+  privacyAcknowledged: boolean;
+  correctionRequest: string | null;
+  correctionRequestAt: string | null;
+  submittedAt: string | null;
   accreditedAt: string | null;
   accreditedBy: string | null;
+  decisionNote: string | null;
   createdAt: string;
+  updatedAt: string;
 };
 
 export type AgentAttendance = {
@@ -782,9 +866,38 @@ export type AgentObservation = {
   id: string;
   agentId: string;
   stationId: string;
+  category: "process" | "technical" | "security" | "conduct" | "other";
   body: string;
+  occurredAt: string;
   createdAt: string;
   linkedIncidentId: string | null;
+  evidenceName?: string;
+  evidenceType?: string;
+};
+
+export type AgentNotification = {
+  id: string;
+  agentId: string;
+  studentId: string;
+  title: string;
+  body: string;
+  href: string;
+  createdAt: string;
+  read: boolean;
+  kind: "invitation" | "application" | "accreditation" | "station" | "instruction" | "report";
+};
+
+export type ObservationInstruction = {
+  id: string;
+  title: string;
+  summary: string;
+  body: string;
+  publishedAt: string;
+  downloadName: string;
+};
+
+export type AgentPolicy = {
+  maxAgentsPerCandidate: number;
 };
 
 export type VoterException = {
@@ -893,8 +1006,12 @@ export type AppStore = {
   cabinetDrafts: CabinetBallotDraft[];
   cabinetVotes: CabinetVote[];
   agents: AgentRecord[];
+  agentInvitations: AgentInvitation[];
+  agentNotifications: AgentNotification[];
   agentAttendance: AgentAttendance[];
   agentObservations: AgentObservation[];
+  observationInstructions: ObservationInstruction[];
+  agentPolicy: AgentPolicy;
   voterExceptions: VoterException[];
   voterProfiles: VoterProfile[];
   voterHistory: VoterHistoryEvent[];
